@@ -1,0 +1,5 @@
+{
+  "name": "Game Map Companion",
+  "description": "A companion app for games like Skyrim, Fallout, and Cyberpunk. Upload custom maps, add markers, keep notes, and chat with an AI assistant about your playthroughs.",
+  "requestFramePermissions": []
+}
