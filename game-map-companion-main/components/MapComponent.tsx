@@ -62,6 +62,17 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
 
   const categories = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
 
+  // Memoize filtered lists to avoid redundant calculations on every re-render
+  const filteredMarkers = useMemo(() =>
+    markers?.filter(m => selectedCategory === 'All' || m.category === selectedCategory),
+    [markers, selectedCategory]
+  );
+
+  const filteredDrawings = useMemo(() =>
+    drawings?.filter(d => selectedCategory === 'All' || d.category === selectedCategory),
+    [drawings, selectedCategory]
+  );
+
   const bounds = useMemo(() => {
     if (!mapData) return null;
     return [[0, 0], [mapData.height, mapData.width]] as L.LatLngBoundsExpression;
@@ -128,9 +139,6 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
   };
 
   if (!mapData || !bounds) return <div className="flex items-center justify-center h-full text-gray-500">Loading map...</div>;
-
-  const filteredMarkers = markers?.filter(m => selectedCategory === 'All' || m.category === selectedCategory);
-  const filteredDrawings = drawings?.filter(d => selectedCategory === 'All' || d.category === selectedCategory);
 
   return (
     <div className="relative w-full h-full flex flex-col">
