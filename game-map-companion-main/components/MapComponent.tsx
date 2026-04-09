@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PenTool, Hexagon, MapPin, Check, X } from 'lucide-react';
 
 // Fix default icon issue
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -48,6 +48,9 @@ function MapInteractionManager({ interactionMode }: { interactionMode: string })
   return null;
 }
 
+const CATEGORIES = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
+const VALID_CATEGORIES = CATEGORIES.filter(c => c !== 'All');
+
 export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { mapId: string, onSelectMap: (id: string) => void, activeProfileId: string }) {
   const mapData = useLiveQuery(() => db.maps.get(mapId), [mapId]);
   const markers = useLiveQuery(() => db.markers.where('mapId').equals(mapId).toArray(), [mapId]);
@@ -61,6 +64,17 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
   const [currentPoints, setCurrentPoints] = useState<[number, number][]>([]);
 
   const categories = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
+
+  // Memoize filtered lists to avoid redundant calculations on every re-render
+  const filteredMarkers = useMemo(() =>
+    markers?.filter(m => selectedCategory === 'All' || m.category === selectedCategory),
+    [markers, selectedCategory]
+  );
+
+  const filteredDrawings = useMemo(() =>
+    drawings?.filter(d => selectedCategory === 'All' || d.category === selectedCategory),
+    [drawings, selectedCategory]
+  );
 
   const bounds = useMemo(() => {
     if (!mapData) return null;
@@ -129,9 +143,6 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
 
   if (!mapData || !bounds) return <div className="flex items-center justify-center h-full text-gray-500">Loading map...</div>;
 
-  const filteredMarkers = markers?.filter(m => selectedCategory === 'All' || m.category === selectedCategory);
-  const filteredDrawings = drawings?.filter(d => selectedCategory === 'All' || d.category === selectedCategory);
-
   return (
     <div className="relative w-full h-full flex flex-col">
       <div className="absolute top-4 right-4 z-[1000] bg-white p-3 rounded-lg shadow-lg flex flex-col gap-3 border border-gray-200">
@@ -142,7 +153,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
-            {categories.map(cat => (
+            {CATEGORIES.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
@@ -244,7 +255,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={drawing.category || 'General'}
                       onChange={(e) => updateDrawing(drawing.id, { category: e.target.value })}
                     >
-                      {categories.filter(c => c !== 'All').map(cat => (
+                      {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -320,7 +331,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={marker.category || 'General'}
                       onChange={(e) => updateMarker(marker.id, { category: e.target.value })}
                     >
-                      {categories.filter(c => c !== 'All').map(cat => (
+                      {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
