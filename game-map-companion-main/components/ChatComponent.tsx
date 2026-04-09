@@ -5,7 +5,6 @@ import { db, Marker } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -189,11 +188,32 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
       }
 
       if (responseText) {
+      const apiResponse = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            { role: 'user', parts: [{ text: context }] },
+            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+            ...history,
+            { role: 'user', parts: userParts }
+          ],
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        throw new Error('Failed to fetch AI response');
+      }
+
+      const data = await apiResponse.json();
+
+      if (data.text) {
         await db.chatMessages.add({
           id: uuidv4(),
           profileId: activeProfileId,
           role: 'model',
           text: responseText,
+          text: data.text,
           timestamp: Date.now(),
         });
       }
@@ -212,9 +232,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
   };
 
   const clearChat = async () => {
-    const messagesToDelete = await db.chatMessages.where('profileId').equals(activeProfileId).toArray();
-    const idsToDelete = messagesToDelete.map(m => m.id);
-    await db.chatMessages.bulkDelete(idsToDelete);
+    await db.chatMessages.where('profileId').equals(activeProfileId).delete();
   };
 
   return (

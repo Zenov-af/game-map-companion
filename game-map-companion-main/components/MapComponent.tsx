@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PenTool, Hexagon, MapPin, Check, X } from 'lucide-react';
 
 // Fix default icon issue
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -62,6 +62,19 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
   const [selectedIconId, setSelectedIconId] = useState<string>('default');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [currentPoints, setCurrentPoints] = useState<[number, number][]>([]);
+
+  const categories = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
+
+  // Memoize filtered lists to avoid redundant calculations on every re-render
+  const filteredMarkers = useMemo(() =>
+    markers?.filter(m => selectedCategory === 'All' || m.category === selectedCategory),
+    [markers, selectedCategory]
+  );
+
+  const filteredDrawings = useMemo(() =>
+    drawings?.filter(d => selectedCategory === 'All' || d.category === selectedCategory),
+    [drawings, selectedCategory]
+  );
 
   const bounds = useMemo(() => {
     if (!mapData) return null;
@@ -129,9 +142,6 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
   };
 
   if (!mapData || !bounds) return <div className="flex items-center justify-center h-full text-gray-500">Loading map...</div>;
-
-  const filteredMarkers = markers?.filter(m => selectedCategory === 'All' || m.category === selectedCategory);
-  const filteredDrawings = drawings?.filter(d => selectedCategory === 'All' || d.category === selectedCategory);
 
   return (
     <div className="relative w-full h-full flex flex-col">
