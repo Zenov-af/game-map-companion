@@ -48,6 +48,9 @@ function MapInteractionManager({ interactionMode }: { interactionMode: string })
   return null;
 }
 
+const CATEGORIES = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
+const VALID_CATEGORIES = CATEGORIES.filter(c => c !== 'All');
+
 export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { mapId: string, onSelectMap: (id: string) => void, activeProfileId: string }) {
   const mapData = useLiveQuery(() => db.maps.get(mapId), [mapId]);
   const markers = useLiveQuery(() => db.markers.where('mapId').equals(mapId).toArray(), [mapId]);
@@ -150,7 +153,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
-            {categories.map(cat => (
+            {CATEGORIES.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
@@ -252,7 +255,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={drawing.category || 'General'}
                       onChange={(e) => updateDrawing(drawing.id, { category: e.target.value })}
                     >
-                      {categories.filter(c => c !== 'All').map(cat => (
+                      {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -328,7 +331,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={marker.category || 'General'}
                       onChange={(e) => updateMarker(marker.id, { category: e.target.value })}
                     >
-                      {categories.filter(c => c !== 'All').map(cat => (
+                      {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
