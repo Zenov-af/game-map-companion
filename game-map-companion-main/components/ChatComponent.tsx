@@ -187,6 +187,24 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         responseText = response.text || '';
       }
 
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          context,
+          history,
+          userParts,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get AI response');
+      }
+
+      const data = await response.json();
       if (responseText) {
       const apiResponse = await fetch('/api/chat', {
         method: 'POST',
@@ -217,13 +235,13 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           timestamp: Date.now(),
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
       await db.chatMessages.add({
         id: uuidv4(),
         profileId: activeProfileId,
         role: 'model',
-        text: 'Sorry, I encountered an error while processing your request.',
+        text: `Sorry, I encountered an error: ${error.message}`,
         timestamp: Date.now(),
       });
     } finally {
