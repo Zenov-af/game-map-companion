@@ -5,6 +5,7 @@ import { db, Marker } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
+import { GoogleGenAI, Part } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -95,6 +96,12 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         }
       }
 
+      const history = messages?.slice(-10).map(m => {
+        const parts: Part[] = [];
+        if (m.imageData) {
+          const base64Data = m.imageData.split(',')[1];
+          const mimeType = m.imageData.split(';')[0].split(':')[1];
+          parts.push({
       let responseText = '';
 
       if (appSettings?.aiProvider === 'local') {
@@ -173,6 +180,21 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         if (userText) {
           userParts.push({ text: userText });
         }
+        return {
+          role: m.role === 'user' ? 'user' : 'model',
+          parts,
+        };
+      }) || [];
+
+      const userParts: Part[] = [];
+      if (imageData) {
+        const base64Data = imageData.split(',')[1];
+        const mimeType = imageData.split(';')[0].split(':')[1];
+        userParts.push({
+          inlineData: {
+            mimeType,
+            data: base64Data,
+          }
 
         const response = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
