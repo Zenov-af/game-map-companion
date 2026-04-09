@@ -60,6 +60,9 @@ export interface AppSettings {
   id: string; // 'default'
   profileId: string;
   systemPrompt: string;
+  aiProvider?: string; // 'gemini' | 'local'
+  geminiApiKey?: string;
+  localAiEndpoint?: string;
 }
 
 export class CompanionDB extends Dexie {

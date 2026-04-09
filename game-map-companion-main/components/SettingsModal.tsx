@@ -4,13 +4,19 @@ import { X, Download, Upload, Save } from 'lucide-react';
 
 export default function SettingsModal({ activeProfileId, onClose }: { activeProfileId: string, onClose: () => void }) {
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful AI assistant for a game map companion app.');
+  const [aiProvider, setAiProvider] = useState('gemini');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [localAiEndpoint, setLocalAiEndpoint] = useState('http://localhost:1234/v1/chat/completions');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await db.settings.get(activeProfileId);
       if (settings) {
-        setSystemPrompt(settings.systemPrompt);
+        setSystemPrompt(settings.systemPrompt || 'You are a helpful AI assistant for a game map companion app.');
+        if (settings.aiProvider) setAiProvider(settings.aiProvider);
+        if (settings.geminiApiKey) setGeminiApiKey(settings.geminiApiKey);
+        if (settings.localAiEndpoint) setLocalAiEndpoint(settings.localAiEndpoint);
       }
     };
     loadSettings();
@@ -21,7 +27,10 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
     await db.settings.put({
       id: activeProfileId,
       profileId: activeProfileId,
-      systemPrompt
+      systemPrompt,
+      aiProvider,
+      geminiApiKey,
+      localAiEndpoint
     });
     setIsSaving(false);
     onClose();
@@ -84,6 +93,59 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
         </div>
         
         <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-8">
+          {/* AI Configuration Section */}
+          <section>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">AI Configuration</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Choose your AI provider and configure the necessary endpoints or keys.
+            </p>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">AI Provider</label>
+                <select
+                  value={aiProvider}
+                  onChange={(e) => setAiProvider(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
+                  <option value="gemini">Google Gemini</option>
+                  <option value="local">Local AI (Ollama / LM Studio)</option>
+                </select>
+              </div>
+
+              {aiProvider === 'gemini' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gemini API Key (Optional)</label>
+                  <input
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="Leave empty to use the built-in key if available"
+                    className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Provide your own API key to bypass limits, or if the server key is not configured.
+                  </p>
+                </div>
+              )}
+
+              {aiProvider === 'local' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Local AI Endpoint</label>
+                  <input
+                    type="url"
+                    value={localAiEndpoint}
+                    onChange={(e) => setLocalAiEndpoint(e.target.value)}
+                    placeholder="http://localhost:1234/v1/chat/completions"
+                    className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Must be an OpenAI-compatible API endpoint. Make sure CORS is enabled on your local server.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* AI Persona Section */}
           <section>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">AI Persona (Custom Instructions)</h3>
