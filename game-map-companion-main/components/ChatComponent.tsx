@@ -5,7 +5,6 @@ import { db, Marker } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -80,8 +79,6 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     await db.chatMessages.add(userMessage);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
-      
       let context = 'You are a helpful AI assistant for a game map companion app.\n';
       if (appSettings?.systemPrompt) {
         context += `\nSystem Instructions:\n${appSettings.systemPrompt}\n\n`;
@@ -134,32 +131,41 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         userParts.push({ text: userText });
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [
-          { role: 'user', parts: [{ text: context }] },
-          { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
-          ...history,
-          { role: 'user', parts: userParts }
-        ],
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          context,
+          history,
+          userParts,
+        }),
       });
 
-      if (response.text) {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get AI response');
+      }
+
+      const data = await response.json();
+
+      if (data.text) {
         await db.chatMessages.add({
           id: uuidv4(),
           profileId: activeProfileId,
           role: 'model',
-          text: response.text,
+          text: data.text,
           timestamp: Date.now(),
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
       await db.chatMessages.add({
         id: uuidv4(),
         profileId: activeProfileId,
         role: 'model',
-        text: 'Sorry, I encountered an error while processing your request.',
+        text: `Sorry, I encountered an error: ${error.message}`,
         timestamp: Date.now(),
       });
     } finally {
