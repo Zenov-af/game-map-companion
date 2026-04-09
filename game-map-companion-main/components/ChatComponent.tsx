@@ -168,9 +168,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
   };
 
   const clearChat = async () => {
-    const messagesToDelete = await db.chatMessages.where('profileId').equals(activeProfileId).toArray();
-    const idsToDelete = messagesToDelete.map(m => m.id);
-    await db.chatMessages.bulkDelete(idsToDelete);
+    await db.chatMessages.where('profileId').equals(activeProfileId).delete();
   };
 
   return (
