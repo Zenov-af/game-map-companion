@@ -96,7 +96,8 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         }
       }
 
-      const history = messages?.slice(-10).map(m => {
+      // Prepare History for Gemini format
+      const history: { role: string; parts: Part[] }[] = messages?.slice(-10).map(m => {
         const parts: Part[] = [];
         if (m.imageData) {
           const base64Data = m.imageData.split(',')[1];
@@ -117,6 +118,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         };
       }) || [];
 
+      // Prepare current user parts
       const userParts: Part[] = [];
       if (imageData) {
         const base64Data = imageData.split(',')[1];
@@ -172,6 +174,45 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
 
         const data = await res.json();
         responseText = data.choices[0].message.content;
+
+      } else if (appSettings?.geminiApiKey) {
+        // Client-side Gemini (User provided API key)
+        const genAI = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const result = await model.generateContent({
+          contents: [
+            { role: 'user', parts: [{ text: context }] },
+            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+            ...history,
+            { role: 'user', parts: userParts }
+          ],
+        });
+
+        const response = await result.response;
+        responseText = response.text();
+
+      } else {
+        // Server-side Proxy (Default)
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context,
+            history,
+            userParts,
+          }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to get AI response');
+        }
+
+        const data = await res.json();
+        responseText = data.text;
+      }
+
       } else {
         // Build common Gemini parts
         const history = messages?.slice(-10).map(m => {
