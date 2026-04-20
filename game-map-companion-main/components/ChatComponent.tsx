@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
-import { GoogleGenAI, Part } from '@google/genai';
+import { Part } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -134,15 +134,24 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         userParts.push({ text: userText });
       }
 
+      const contents = [
+        { role: 'user', parts: [{ text: context }] },
+        { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+        ...history,
+        { role: 'user', parts: userParts }
+      ];
+
+      const chatHistory = messages?.slice(-10) || [];
       let responseText = '';
 
       if (appSettings?.aiProvider === 'local') {
         const localEndpoint = appSettings?.localAiEndpoint || 'http://localhost:1234/v1/chat/completions';
-
         const localHistory = messages?.slice(-10).map(m => ({
+
+        const localHistory = chatHistory.map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.text || ''
-        })) || [];
+        }));
 
         const payload = {
           model: 'local-model',
@@ -202,6 +211,106 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
 
         const data = await res.json();
         responseText = data.text;
+      }
+
+      } else {
+        // Build common Gemini parts
+        const history = messages?.slice(-10).map(m => {
+
+      } else if (appSettings?.geminiApiKey) {
+        // Use Gemini client-side with user-provided key
+        const genAI = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const result = await model.generateContent({ contents });
+        const response = await result.response;
+        responseText = response.text();
+      } else {
+        // Fallback to server-side route
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents }),
+      } else {
+        // Use Gemini via server-side API
+        const historyParts = chatHistory.map(m => {
+          const parts: Part[] = [];
+          if (m.imageData) {
+            const base64Data = m.imageData.split(',')[1];
+            const mimeType = m.imageData.split(';')[0].split(':')[1];
+            parts.push({
+              inlineData: { mimeType, data: base64Data }
+            });
+          }
+          if (m.text) {
+            parts.push({ text: m.text });
+          }
+          return {
+            role: m.role === 'user' ? 'user' : 'model',
+            parts,
+          };
+        });
+
+        const userParts: Part[] = [];
+        if (imageData) {
+          const base64Data = imageData.split(',')[1];
+          const mimeType = imageData.split(';')[0].split(':')[1];
+          userParts.push({
+            inlineData: { mimeType, data: base64Data }
+          });
+        }
+        if (userText) {
+          userParts.push({ text: userText });
+        }
+
+        const contents = [
+          { role: 'user', parts: [{ text: context }] },
+          { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+          ...history,
+          { role: 'user', parts: userParts }
+        ];
+
+        if (appSettings?.geminiApiKey) {
+          // Use Gemini client-side with user key
+          const ai = new GoogleGenAI(appSettings.geminiApiKey);
+          const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+          const result = await model.generateContent({ contents });
+          const response = await result.response;
+          responseText = response.text();
+        } else {
+          // Use server-side proxy
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents }),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Failed to get AI response');
+          }
+
+          const data = await res.json();
+          responseText = data.text;
+        }
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context,
+            history: historyParts,
+            userParts,
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json();
+          throw new Error(errorData.error || 'Failed to fetch AI response');
+        }
+
+        const data = await apiResponse.json();
+        responseText = data.text;
+        responseText = data.text || '';
       }
 
       if (responseText) {

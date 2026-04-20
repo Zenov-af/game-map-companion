@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,8 +25,20 @@ export default function Sidebar({
   const maps = useLiveQuery(() => db.maps.where('profileId').equals(activeProfileId).toArray(), [activeProfileId]);
   const customIcons = useLiveQuery(() => db.customIcons.where('profileId').equals(activeProfileId).toArray(), [activeProfileId]);
   const allMarkers = useLiveQuery(() => db.markers.where('profileId').equals(activeProfileId).toArray(), [activeProfileId]);
+
+  const mapsById = useMemo(() => {
+    const map = new Map<string, typeof maps[number]>();
+    maps?.forEach(m => map.set(m.id, m));
+    return map;
+  }, [maps]);
   
   const [searchQuery, setSearchQuery] = useState('');
+
+  const mapsById = useMemo(() => {
+    const map = new Map();
+    maps?.forEach(m => map.set(m.id, m));
+    return map;
+  }, [maps]);
 
   const handleProfileAdd = async () => {
     const name = prompt('Enter new profile name (e.g., "Skyrim", "Cyberpunk"):');
@@ -147,7 +159,7 @@ export default function Sidebar({
             <h2 className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3">Search Results</h2>
             <ul className="flex flex-col gap-2">
               {searchResults.map(marker => {
-                const map = maps?.find(m => m.id === marker.mapId);
+                const map = mapsById.get(marker.mapId);
                 return (
                   <li key={marker.id} className="bg-neutral-800/50 border border-neutral-700 rounded-md p-2 text-sm cursor-pointer hover:bg-neutral-700 transition-colors" onClick={() => onSelectMap(marker.mapId)}>
                     <div className="font-semibold text-blue-300 truncate">{marker.title || 'Untitled Marker'}</div>
