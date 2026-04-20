@@ -9,12 +9,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { PenTool, Hexagon, MapPin, Check, X } from 'lucide-react';
 
-// Fix default icon issue
+// Fix default icon issue by using embedded SVG data URLs.
+// This avoids pathing issues in Next.js and dependency on external CDNs.
 delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iNDEiIHZpZXdCb3g9IjAgMCAyNSA0MSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIuNSAwQzUuNTk2IDAgMCA1LjU5NiAwIDEyLjVDMCAyMS44NzUgMTIuNSA0MSAxMi41IDQxUzI1IDIxLjg3NSAyNSAxMi41QzI1IDUuNTk2IDE5LjQwNCAwIDEyLjUgMFpNMTIuNSAxOC43NUM5LjA0NyAxOC43NSA2LjI1IDE1Ljk1MyA2LjI1IDEyLjVDNi4yNSA5LjA0NyA5LjA0NyA2LjI1IDEyLjUgNi4yNUMxNS45NTMgNi4yNSAxOC43NSA5LjA0NyAxOC43NSAxMi41QzE4Ljc1IDE1Ljk1MyAxNS45NTMgMTguNzUgMTIuNSAxOC43NVoiIGZpbGw9IiMzYjgyZjYiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+',
+  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iNDEiIHZpZXdCb3g9IjAgMCAyNSA0MSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIuNSAwQzUuNTk2IDAgMCA1LjU5NiAwIDEyLjVDMCAyMS44NzUgMTIuNSA0MSAxMi41IDQxUzI1IDIxLjg3NSAyNSAxMi41QzI1IDUuNTk2IDE5LjQwNCAwIDEyLjUgMFpNMTIuNSAxOC43NUM5LjA0NyAxOC43NSA2LjI1IDE1Ljk1MyA2LjI1IDEyLjVDNi4yNSA5LjA0NyA5LjA0NyA2LjI1IDEyLjUgNi4yNUMxNS45NTMgNi4yNSAxOC43NSA5LjA0NyAxOC43NSAxMi41QzE4Ljc1IDE1Ljk1MyAxNS45NTMgMTguNzUgMTIuNSAxOC43NVoiIGZpbGw9IiMzYjgyZjYiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+',
+  shadowUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDEiIGhlaWdodD0iNDEiIHZpZXdCb3g9IjAgMCA0MSA0MSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZWxsaXBzZSBjeD0iMTIiIGN5PSIzOCIgcng9IjEyIiByeT0iMyIgZmlsbD0icmdiYSgwLDAsMCwwLjIpIi8+PC9zdmc+',
 });
 
 function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
