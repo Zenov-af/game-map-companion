@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
-import { GoogleGenAI, Part } from '@google/genai';
+import { Part } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -139,15 +139,16 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         { role: 'user', parts: userParts }
       ];
 
+      const chatHistory = messages?.slice(-10) || [];
       let responseText = '';
 
       if (appSettings?.aiProvider === 'local') {
         const localEndpoint = appSettings?.localAiEndpoint || 'http://localhost:1234/v1/chat/completions';
 
-        const localHistory = messages?.slice(-10).map(m => ({
+        const localHistory = chatHistory.map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.text || ''
-        })) || [];
+        }));
 
         const payload = {
           model: 'local-model',
@@ -185,6 +186,52 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents }),
+      } else {
+        // Use Gemini via server-side API
+        const historyParts = chatHistory.map(m => {
+          const parts: Part[] = [];
+          if (m.imageData) {
+            const base64Data = m.imageData.split(',')[1];
+            const mimeType = m.imageData.split(';')[0].split(':')[1];
+            parts.push({
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              }
+            });
+          }
+          if (m.text) {
+            parts.push({ text: m.text });
+          }
+          return {
+            role: m.role === 'user' ? 'user' : 'model',
+            parts,
+          };
+        });
+
+        const userParts: Part[] = [];
+        if (imageData) {
+          const base64Data = imageData.split(',')[1];
+          const mimeType = imageData.split(';')[0].split(':')[1];
+          userParts.push({
+            inlineData: {
+              mimeType,
+              data: base64Data,
+            }
+          });
+        }
+        if (userText) {
+          userParts.push({ text: userText });
+        }
+
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context,
+            history: historyParts,
+            userParts,
+          }),
         });
 
         if (!apiResponse.ok) {
@@ -194,6 +241,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
 
         const data = await apiResponse.json();
         responseText = data.text;
+        responseText = data.text || '';
       }
 
       if (responseText) {
