@@ -12,6 +12,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Gemini API key not configured on the server.' }, { status: 500 });
     }
 
+    const genAI = new GoogleGenAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent({ contents });
     const genAI = new GoogleGenAI({ apiKey });
     // Using gemini-1.5-flash as it is a stable model.
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
