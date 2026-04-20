@@ -34,6 +34,12 @@ export default function Sidebar({
   
   const [searchQuery, setSearchQuery] = useState('');
 
+  const mapsById = useMemo(() => {
+    const map = new Map();
+    maps?.forEach(m => map.set(m.id, m));
+    return map;
+  }, [maps]);
+
   const handleProfileAdd = async () => {
     const name = prompt('Enter new profile name (e.g., "Skyrim", "Cyberpunk"):');
     if (name) {
