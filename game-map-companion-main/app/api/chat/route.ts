@@ -16,6 +16,23 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const result = await model.generateContent({ contents });
+    const genAI = new GoogleGenAI({ apiKey });
+    // Using gemini-1.5-flash as it is a stable model.
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent({ contents });
+    const ai = new GoogleGenAI({ apiKey });
+    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent({
+      contents: [
+        { role: 'user', parts: [{ text: context }] },
+        { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+        ...history,
+        { role: 'user', parts: userParts }
+      ],
+    });
+
     const response = await result.response;
     const text = response.text();
 
