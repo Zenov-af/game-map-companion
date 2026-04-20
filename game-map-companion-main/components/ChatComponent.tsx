@@ -5,7 +5,7 @@ import { db, Marker } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
-import { GoogleGenAI, Part } from '@google/genai';
+import { Part } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -96,24 +96,17 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         }
       }
 
-      const history = messages?.slice(-10).map(m => {
-        const parts: Part[] = [];
-        if (m.imageData) {
-          const base64Data = m.imageData.split(',')[1];
-          const mimeType = m.imageData.split(';')[0].split(':')[1];
-          parts.push({
+      const chatHistory = messages?.slice(-10) || [];
       let responseText = '';
 
       if (appSettings?.aiProvider === 'local') {
         const localEndpoint = appSettings?.localAiEndpoint || 'http://localhost:1234/v1/chat/completions';
 
-        const localHistory = messages?.slice(-10).map(m => ({
+        const localHistory = chatHistory.map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.text || ''
-        })) || [];
+        }));
 
-        // Note: Local models via typical OpenAI compatible APIs often only support text.
-        // We will pass the text, ignoring images for local models for now unless supported by standard vision APIs.
         const payload = {
           model: 'local-model',
           messages: [
@@ -137,16 +130,9 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         responseText = data.choices[0].message.content;
 
       } else {
-        // Use Gemini
-        const apiKey = appSettings?.geminiApiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-        if (!apiKey) {
-          throw new Error('Gemini API key is missing. Please provide one in Settings.');
-        }
-
-        const ai = new GoogleGenAI({ apiKey });
-
-        const history = messages?.slice(-10).map(m => {
-          const parts: any[] = [];
+        // Use Gemini via server-side API
+        const historyParts = chatHistory.map(m => {
+          const parts: Part[] = [];
           if (m.imageData) {
             const base64Data = m.imageData.split(',')[1];
             const mimeType = m.imageData.split(';')[0].split(':')[1];
@@ -164,9 +150,9 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
             role: m.role === 'user' ? 'user' : 'model',
             parts,
           };
-        }) || [];
+        });
 
-        const userParts: any[] = [];
+        const userParts: Part[] = [];
         if (imageData) {
           const base64Data = imageData.split(',')[1];
           const mimeType = imageData.split(';')[0].split(':')[1];
@@ -180,80 +166,32 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         if (userText) {
           userParts.push({ text: userText });
         }
-        return {
-          role: m.role === 'user' ? 'user' : 'model',
-          parts,
-        };
-      }) || [];
 
-      const userParts: Part[] = [];
-      if (imageData) {
-        const base64Data = imageData.split(',')[1];
-        const mimeType = imageData.split(';')[0].split(':')[1];
-        userParts.push({
-          inlineData: {
-            mimeType,
-            data: base64Data,
-          }
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: [
-            { role: 'user', parts: [{ text: context }] },
-            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
-            ...history,
-            { role: 'user', parts: userParts }
-          ],
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context,
+            history: historyParts,
+            userParts,
+          }),
         });
 
-        responseText = response.text || '';
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json();
+          throw new Error(errorData.error || 'Failed to fetch AI response');
+        }
+
+        const data = await apiResponse.json();
+        responseText = data.text || '';
       }
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          context,
-          history,
-          userParts,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get AI response');
-      }
-
-      const data = await response.json();
       if (responseText) {
-      const apiResponse = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            { role: 'user', parts: [{ text: context }] },
-            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
-            ...history,
-            { role: 'user', parts: userParts }
-          ],
-        }),
-      });
-
-      if (!apiResponse.ok) {
-        throw new Error('Failed to fetch AI response');
-      }
-
-      const data = await apiResponse.json();
-
-      if (data.text) {
         await db.chatMessages.add({
           id: uuidv4(),
           profileId: activeProfileId,
           role: 'model',
           text: responseText,
-          text: data.text,
           timestamp: Date.now(),
         });
       }
