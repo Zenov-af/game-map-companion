@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { db, Marker } from '@/lib/db';
+import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
@@ -102,6 +102,43 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           const base64Data = m.imageData.split(',')[1];
           const mimeType = m.imageData.split(';')[0].split(':')[1];
           parts.push({
+            inlineData: {
+              mimeType,
+              data: base64Data,
+            }
+          });
+        }
+        if (m.text) {
+          parts.push({ text: m.text });
+        }
+        return {
+          role: m.role === 'user' ? 'user' : 'model',
+          parts,
+        };
+      }) || [];
+
+      const userParts: Part[] = [];
+      if (imageData) {
+        const base64Data = imageData.split(',')[1];
+        const mimeType = imageData.split(';')[0].split(':')[1];
+        userParts.push({
+          inlineData: {
+            mimeType,
+            data: base64Data,
+          }
+        });
+      }
+      if (userText) {
+        userParts.push({ text: userText });
+      }
+
+      const contents = [
+        { role: 'user', parts: [{ text: context }] },
+        { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+        ...history,
+        { role: 'user', parts: userParts }
+      ];
+
       let responseText = '';
 
       if (appSettings?.aiProvider === 'local') {
@@ -112,8 +149,6 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           content: m.text || ''
         })) || [];
 
-        // Note: Local models via typical OpenAI compatible APIs often only support text.
-        // We will pass the text, ignoring images for local models for now unless supported by standard vision APIs.
         const payload = {
           model: 'local-model',
           messages: [
@@ -136,124 +171,37 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         const data = await res.json();
         responseText = data.choices[0].message.content;
 
+      } else if (appSettings?.geminiApiKey) {
+        // Use Gemini client-side with user-provided key
+        const genAI = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const result = await model.generateContent({ contents });
+        const response = await result.response;
+        responseText = response.text();
       } else {
-        // Use Gemini
-        const apiKey = appSettings?.geminiApiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-        if (!apiKey) {
-          throw new Error('Gemini API key is missing. Please provide one in Settings.');
-        }
-
-        const ai = new GoogleGenAI({ apiKey });
-
-        const history = messages?.slice(-10).map(m => {
-          const parts: any[] = [];
-          if (m.imageData) {
-            const base64Data = m.imageData.split(',')[1];
-            const mimeType = m.imageData.split(';')[0].split(':')[1];
-            parts.push({
-              inlineData: {
-                mimeType,
-                data: base64Data,
-              }
-            });
-          }
-          if (m.text) {
-            parts.push({ text: m.text });
-          }
-          return {
-            role: m.role === 'user' ? 'user' : 'model',
-            parts,
-          };
-        }) || [];
-
-        const userParts: any[] = [];
-        if (imageData) {
-          const base64Data = imageData.split(',')[1];
-          const mimeType = imageData.split(';')[0].split(':')[1];
-          userParts.push({
-            inlineData: {
-              mimeType,
-              data: base64Data,
-            }
-          });
-        }
-        if (userText) {
-          userParts.push({ text: userText });
-        }
-        return {
-          role: m.role === 'user' ? 'user' : 'model',
-          parts,
-        };
-      }) || [];
-
-      const userParts: Part[] = [];
-      if (imageData) {
-        const base64Data = imageData.split(',')[1];
-        const mimeType = imageData.split(';')[0].split(':')[1];
-        userParts.push({
-          inlineData: {
-            mimeType,
-            data: base64Data,
-          }
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: [
-            { role: 'user', parts: [{ text: context }] },
-            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
-            ...history,
-            { role: 'user', parts: userParts }
-          ],
+        // Fallback to server-side route
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents }),
         });
 
-        responseText = response.text || '';
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json();
+          throw new Error(errorData.error || 'Failed to fetch AI response');
+        }
+
+        const data = await apiResponse.json();
+        responseText = data.text;
       }
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          context,
-          history,
-          userParts,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get AI response');
-      }
-
-      const data = await response.json();
       if (responseText) {
-      const apiResponse = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            { role: 'user', parts: [{ text: context }] },
-            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
-            ...history,
-            { role: 'user', parts: userParts }
-          ],
-        }),
-      });
-
-      if (!apiResponse.ok) {
-        throw new Error('Failed to fetch AI response');
-      }
-
-      const data = await apiResponse.json();
-
-      if (data.text) {
         await db.chatMessages.add({
           id: uuidv4(),
           profileId: activeProfileId,
           role: 'model',
           text: responseText,
-          text: data.text,
           timestamp: Date.now(),
         });
       }
