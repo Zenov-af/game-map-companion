@@ -18,6 +18,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDEiIGhlaWdodD0iNDEiIHZpZXdCb3g9IjAgMCA0MSA0MSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZWxsaXBzZSBjeD0iMTIiIGN5PSIzOCIgcng9IjEyIiByeT0iMyIgZmlsbD0icmdiYSgwLDAsMCwwLjIpIi8+PC9zdmc+',
 });
 
+const DEFAULT_ICON = new L.Icon.Default();
+const CATEGORIES = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
+
 function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
   useMapEvents({
     click(e) {
@@ -256,6 +259,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={drawing.category || 'General'}
                       onChange={(e) => updateDrawing(drawing.id, { category: e.target.value })}
                     >
+                      {CATEGORIES.filter(c => c !== 'All').map(cat => (
                       {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
@@ -283,7 +287,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
         })}
 
         {filteredMarkers?.map(marker => {
-          let icon = new L.Icon.Default();
+          let icon = DEFAULT_ICON;
           if (marker.iconId !== 'default') {
             const customIcon = customIcons?.find(i => i.id === marker.iconId);
             if (customIcon) {
@@ -332,6 +336,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={marker.category || 'General'}
                       onChange={(e) => updateMarker(marker.id, { category: e.target.value })}
                     >
+                      {CATEGORIES.filter(c => c !== 'All').map(cat => (
                       {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
