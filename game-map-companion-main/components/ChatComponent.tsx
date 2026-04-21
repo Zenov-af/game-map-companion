@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { db, Marker } from '@/lib/db';
+import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { Part } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -80,8 +80,6 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     await db.chatMessages.add(userMessage);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
-      
       let context = 'You are a helpful AI assistant for a game map companion app.\n';
       if (appSettings?.systemPrompt) {
         context += `\nSystem Instructions:\n${appSettings.systemPrompt}\n\n`;
@@ -98,8 +96,9 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         }
       }
 
-      const history = messages?.slice(-10).map(m => {
-        const parts: any[] = [];
+      // Prepare History for Gemini format
+      const history: { role: string; parts: Part[] }[] = messages?.slice(-10).map(m => {
+        const parts: Part[] = [];
         if (m.imageData) {
           const base64Data = m.imageData.split(',')[1];
           const mimeType = m.imageData.split(';')[0].split(':')[1];
@@ -119,7 +118,8 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         };
       }) || [];
 
-      const userParts: any[] = [];
+      // Prepare current user parts
+      const userParts: Part[] = [];
       if (imageData) {
         const base64Data = imageData.split(',')[1];
         const mimeType = imageData.split(';')[0].split(':')[1];
@@ -134,32 +134,201 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         userParts.push({ text: userText });
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [
+      const contents = [
+        { role: 'user', parts: [{ text: context }] },
+        { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+        ...history,
+        { role: 'user', parts: userParts }
+      ];
+
+      const chatHistory = messages?.slice(-10) || [];
+      let responseText = '';
+
+      if (appSettings?.aiProvider === 'local') {
+        const localEndpoint = appSettings?.localAiEndpoint || 'http://localhost:1234/v1/chat/completions';
+        const localHistory = messages?.slice(-10).map(m => ({
+
+        const localHistory = chatHistory.map(m => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: m.text || ''
+        }));
+
+        const payload = {
+          model: 'local-model',
+          messages: [
+            { role: 'system', content: context },
+            ...localHistory,
+            { role: 'user', content: userText }
+          ]
+        };
+
+        const res = await fetch(localEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          throw new Error(`Local AI request failed: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        responseText = data.choices[0].message.content;
+
+      } else if (appSettings?.geminiApiKey) {
+        // Client-side Gemini (User provided API key)
+        const genAI = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const result = await model.generateContent({
+          contents: [
+            { role: 'user', parts: [{ text: context }] },
+            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+            ...history,
+            { role: 'user', parts: userParts }
+          ],
+        });
+
+        const response = await result.response;
+        responseText = response.text();
+
+      } else {
+        // Server-side Proxy (Default)
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context,
+            history,
+            userParts,
+          }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to get AI response');
+        }
+
+        const data = await res.json();
+        responseText = data.text;
+      }
+
+      } else {
+        // Build common Gemini parts
+        const history = messages?.slice(-10).map(m => {
+
+      } else if (appSettings?.geminiApiKey) {
+        // Use Gemini client-side with user-provided key
+        const genAI = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const result = await model.generateContent({ contents });
+        const response = await result.response;
+        responseText = response.text();
+      } else {
+        // Fallback to server-side route
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents }),
+      } else {
+        // Use Gemini via server-side API
+        const historyParts = chatHistory.map(m => {
+          const parts: Part[] = [];
+          if (m.imageData) {
+            const base64Data = m.imageData.split(',')[1];
+            const mimeType = m.imageData.split(';')[0].split(':')[1];
+            parts.push({
+              inlineData: { mimeType, data: base64Data }
+            });
+          }
+          if (m.text) {
+            parts.push({ text: m.text });
+          }
+          return {
+            role: m.role === 'user' ? 'user' : 'model',
+            parts,
+          };
+        });
+
+        const userParts: Part[] = [];
+        if (imageData) {
+          const base64Data = imageData.split(',')[1];
+          const mimeType = imageData.split(';')[0].split(':')[1];
+          userParts.push({
+            inlineData: { mimeType, data: base64Data }
+          });
+        }
+        if (userText) {
+          userParts.push({ text: userText });
+        }
+
+        const contents = [
           { role: 'user', parts: [{ text: context }] },
           { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
           ...history,
           { role: 'user', parts: userParts }
-        ],
-      });
+        ];
 
-      if (response.text) {
+        if (appSettings?.geminiApiKey) {
+          // Use Gemini client-side with user key
+          const ai = new GoogleGenAI(appSettings.geminiApiKey);
+          const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+          const result = await model.generateContent({ contents });
+          const response = await result.response;
+          responseText = response.text();
+        } else {
+          // Use server-side proxy
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents }),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Failed to get AI response');
+          }
+
+          const data = await res.json();
+          responseText = data.text;
+        }
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context,
+            history: historyParts,
+            userParts,
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json();
+          throw new Error(errorData.error || 'Failed to fetch AI response');
+        }
+
+        const data = await apiResponse.json();
+        responseText = data.text;
+        responseText = data.text || '';
+      }
+
+      if (responseText) {
         await db.chatMessages.add({
           id: uuidv4(),
           profileId: activeProfileId,
           role: 'model',
-          text: response.text,
+          text: responseText,
           timestamp: Date.now(),
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
       await db.chatMessages.add({
         id: uuidv4(),
         profileId: activeProfileId,
         role: 'model',
-        text: 'Sorry, I encountered an error while processing your request.',
+        text: `Sorry, I encountered an error: ${error.message}`,
         timestamp: Date.now(),
       });
     } finally {
@@ -168,9 +337,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
   };
 
   const clearChat = async () => {
-    const messagesToDelete = await db.chatMessages.where('profileId').equals(activeProfileId).toArray();
-    const idsToDelete = messagesToDelete.map(m => m.id);
-    await db.chatMessages.bulkDelete(idsToDelete);
+    await db.chatMessages.where('profileId').equals(activeProfileId).delete();
   };
 
   return (
