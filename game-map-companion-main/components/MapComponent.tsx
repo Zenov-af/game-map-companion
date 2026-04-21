@@ -17,6 +17,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+const DEFAULT_ICON = new L.Icon.Default();
+const CATEGORIES = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
+
 function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
   useMapEvents({
     click(e) {
@@ -59,8 +62,6 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
   const [selectedIconId, setSelectedIconId] = useState<string>('default');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [currentPoints, setCurrentPoints] = useState<[number, number][]>([]);
-
-  const categories = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
 
   const bounds = useMemo(() => {
     if (!mapData) return null;
@@ -142,7 +143,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
-            {categories.map(cat => (
+            {CATEGORIES.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
@@ -244,7 +245,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={drawing.category || 'General'}
                       onChange={(e) => updateDrawing(drawing.id, { category: e.target.value })}
                     >
-                      {categories.filter(c => c !== 'All').map(cat => (
+                      {CATEGORIES.filter(c => c !== 'All').map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -271,7 +272,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
         })}
 
         {filteredMarkers?.map(marker => {
-          let icon = new L.Icon.Default();
+          let icon = DEFAULT_ICON;
           if (marker.iconId !== 'default') {
             const customIcon = customIcons?.find(i => i.id === marker.iconId);
             if (customIcon) {
@@ -320,7 +321,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={marker.category || 'General'}
                       onChange={(e) => updateMarker(marker.id, { category: e.target.value })}
                     >
-                      {categories.filter(c => c !== 'All').map(cat => (
+                      {CATEGORIES.filter(c => c !== 'All').map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
