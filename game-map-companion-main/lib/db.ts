@@ -56,6 +56,12 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface Persona {
+  id: string;
+  name: string;
+  prompt: string;
+}
+
 export interface AppSettings {
   id: string; // 'default'
   profileId: string;
@@ -64,6 +70,18 @@ export interface AppSettings {
   geminiApiKey?: string;
   localAiEndpoint?: string;
   localAiModel?: string;
+
+  // Advanced parameters
+  temperature?: number;
+  maxTokens?: number;
+
+  // Context toggles
+  includeMapContext?: boolean;
+  includeMarkersContext?: boolean;
+
+  // Personas (Gems)
+  personas?: Persona[];
+  activePersonaId?: string;
 }
 
 export class CompanionDB extends Dexie {
