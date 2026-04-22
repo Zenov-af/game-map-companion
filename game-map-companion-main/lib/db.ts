@@ -63,6 +63,7 @@ export interface AppSettings {
   aiProvider?: string; // 'gemini' | 'local'
   geminiApiKey?: string;
   localAiEndpoint?: string;
+  localAiModel?: string;
 }
 
 export class CompanionDB extends Dexie {

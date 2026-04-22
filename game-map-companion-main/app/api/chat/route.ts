@@ -12,32 +12,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Gemini API key not configured on the server.' }, { status: 500 });
     }
 
-    const genAI = new GoogleGenAI({ apiKey });
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    const genAI = new GoogleGenAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    const result = await model.generateContent({ contents });
-    const genAI = new GoogleGenAI({ apiKey });
-    // Using gemini-1.5-flash as it is a stable model.
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    const result = await model.generateContent({ contents });
     const ai = new GoogleGenAI({ apiKey });
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    const result = await model.generateContent({
-      contents: [
-        { role: 'user', parts: [{ text: context }] },
-        { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
-        ...history,
-        { role: 'user', parts: userParts }
-      ],
+    const result = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents
     });
 
-    const response = await result.response;
-    const text = response.text();
+    const text = result.text;
 
     return NextResponse.json({ text });
   } catch (error: any) {

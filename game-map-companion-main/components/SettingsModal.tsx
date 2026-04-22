@@ -7,6 +7,7 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
   const [aiProvider, setAiProvider] = useState('gemini');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [localAiEndpoint, setLocalAiEndpoint] = useState('http://localhost:1234/v1/chat/completions');
+  const [localAiModel, setLocalAiModel] = useState('local-model');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
         if (settings.aiProvider) setAiProvider(settings.aiProvider);
         if (settings.geminiApiKey) setGeminiApiKey(settings.geminiApiKey);
         if (settings.localAiEndpoint) setLocalAiEndpoint(settings.localAiEndpoint);
+        if (settings.localAiModel) setLocalAiModel(settings.localAiModel);
       }
     };
     loadSettings();
@@ -30,7 +32,8 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
       systemPrompt,
       aiProvider,
       geminiApiKey,
-      localAiEndpoint
+      localAiEndpoint,
+      localAiModel
     });
     setIsSaving(false);
     onClose();
@@ -129,18 +132,36 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
               )}
 
               {aiProvider === 'local' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Local AI Endpoint</label>
-                  <input
-                    type="url"
-                    value={localAiEndpoint}
-                    onChange={(e) => setLocalAiEndpoint(e.target.value)}
-                    placeholder="http://localhost:1234/v1/chat/completions"
-                    className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Must be an OpenAI-compatible API endpoint. Make sure CORS is enabled on your local server.
-                  </p>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Local AI Endpoint</label>
+                    <input
+                      type="url"
+                      value={localAiEndpoint}
+                      onChange={(e) => setLocalAiEndpoint(e.target.value)}
+                      placeholder="http://localhost:1234/v1/chat/completions"
+                      className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Must be an OpenAI-compatible API endpoint. Make sure CORS is enabled on your local server.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Local Model Name</label>
+                    <input
+                      type="text"
+                      value={localAiModel}
+                      onChange={(e) => setLocalAiModel(e.target.value)}
+                      placeholder="e.g. llama3, local-model"
+                      className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded text-sm text-yellow-800">
+                    <strong>Note:</strong> Some local AI models do not natively support image inputs (Vision).
+                    If you intend to use images in your chat, ensure your local model supports vision, or route
+                    your requests through an interrupter AI/pipeline tool that can pre-process images before sending text to the LLM.
+                    We send images using the standard OpenAI Vision format.
+                  </div>
                 </div>
               )}
             </div>
