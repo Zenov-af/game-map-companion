@@ -1,5 +1,8 @@
 node_modules
 .next
+dist
+build
+*.log
 out
 build
 dist
