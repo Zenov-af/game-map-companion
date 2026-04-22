@@ -4,10 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
 import { GoogleGenAI, Part } from '@google/genai';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -365,22 +363,13 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
               <Bot className="w-5 h-5 text-blue-500" />
               AI Assistant
             </h2>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setAutoSpeak(!autoSpeak)}
-                className={`p-1.5 rounded-md transition-colors ${autoSpeak ? 'text-blue-600 bg-blue-50' : 'text-neutral-400 hover:text-blue-500 hover:bg-neutral-50'}`}
-                title={autoSpeak ? "Auto-read responses (ON)" : "Auto-read responses (OFF)"}
-              >
-                {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={clearChat}
-                className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                title="Clear Chat"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={clearChat}
+              className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+              title="Clear Chat"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-neutral-500 truncate">Ask questions about your maps & markers.</p>
