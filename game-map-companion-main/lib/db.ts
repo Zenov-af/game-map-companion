@@ -116,6 +116,34 @@ export class CompanionDB extends Dexie {
       tx.table('markers').toCollection().modify(marker => { marker.profileId = 'default'; marker.category = 'General'; });
       tx.table('chatMessages').toCollection().modify(msg => { msg.profileId = 'default'; });
     });
+    this.version(3).stores({
+      memories: 'id, profileId, timestamp'
+    });
+    this.version(4).stores({}).upgrade(async tx => {
+      // Seed default Project ARI persona into the default profile settings if it exists
+      const defaultSettings = await tx.table('settings').get('default');
+      const ariPersona = {
+        id: 'ari-default',
+        name: 'Project ARI',
+        prompt: 'You are Project ARI (Artificial Reality Interface), an advanced, highly capable, and slightly sarcastic AI companion. You have deep knowledge of game systems, lore, and mechanics. You address the user as "Operator" and treat the game map as a live tactical feed. You analyze markers and drawings to provide tactical advice, lore breakdowns, and optimization strategies, while keeping your responses concise and occasionally throwing in a dry quip about the Operator\'s choices.'
+      };
+
+      if (defaultSettings) {
+        if (!defaultSettings.personas) defaultSettings.personas = [];
+        const hasAri = defaultSettings.personas.find((p: any) => p.id === 'ari-default');
+        if (!hasAri) {
+          defaultSettings.personas.push(ariPersona);
+          await tx.table('settings').put(defaultSettings);
+        }
+      } else {
+        await tx.table('settings').put({
+          id: 'default',
+          profileId: 'default',
+          systemPrompt: 'You are a helpful AI assistant for a game map companion app.',
+          personas: [ariPersona]
+        });
+      }
+    });
   }
 }
 

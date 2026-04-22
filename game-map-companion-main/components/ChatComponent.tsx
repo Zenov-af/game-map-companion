@@ -13,6 +13,10 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  const [isListening, setIsListening] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   const messages = useLiveQuery(
     () => db.chatMessages.where('profileId').equals(activeProfileId).sortBy('timestamp'),
     [activeProfileId]
@@ -23,6 +27,13 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     async () => {
       if (!currentMapId) return undefined;
       return await db.maps.get(currentMapId);
+    },
+    [currentMapId]
+  );
+  const currentDrawings = useLiveQuery(
+    async () => {
+      if (!currentMapId) return [];
+      return await db.drawings.where('mapId').equals(currentMapId).toArray();
     },
     [currentMapId]
   );
@@ -43,6 +54,49 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(prev => prev + (prev ? ' ' : '') + transcript);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error', event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
+
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,6 +157,13 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           });
         } else {
           context += `There are no markers placed on this map yet.\n`;
+        }
+
+        if (currentDrawings && currentDrawings.length > 0) {
+          context += `Here are the drawings/territories the user has made on this map:\n`;
+          currentDrawings.forEach(d => {
+            context += `- [${d.type.toUpperCase()}] ${d.title}: ${d.notes} (Category: ${d.category || 'General'})\n`;
+          });
         }
       }
 
@@ -259,6 +320,11 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           text: responseText,
           timestamp: Date.now(),
         });
+        if (autoSpeak) {
+          // Strip out markdown or tool bracket text for cleaner reading
+          const cleanText = responseText.replace(/\[Action:.*?\]/g, '').replace(/[*_#`]/g, '');
+          speakText(cleanText);
+        }
       }
     } catch (error: any) {
       console.error('Chat error:', error);
@@ -338,7 +404,11 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
               {msg.imageData && (
                 <img src={msg.imageData} alt="Uploaded" className="max-w-full rounded-lg mb-2 max-h-64 object-contain" />
               )}
-              {msg.text && <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.text}</p>}
+              {msg.text && (
+                <div className={`prose prose-sm max-w-none ${msg.role === 'user' ? 'prose-invert' : ''}`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -383,6 +453,13 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
             title="Upload Image"
           >
             <ImagePlus className="w-5 h-5" />
+          </button>
+          <button
+            onClick={toggleListening}
+            className={`p-2 rounded-lg transition-colors ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-neutral-500 hover:text-blue-600 hover:bg-blue-50'}`}
+            title="Voice Dictation"
+          >
+            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
           <input
             type="text"
