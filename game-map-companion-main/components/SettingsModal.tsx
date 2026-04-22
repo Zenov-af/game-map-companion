@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/db';
-import { X, Download, Upload, Save } from 'lucide-react';
+import { db, Persona } from '@/lib/db';
+import { X, Download, Upload, Save, Plus, Trash2 } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function SettingsModal({ activeProfileId, onClose }: { activeProfileId: string, onClose: () => void }) {
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful AI assistant for a game map companion app.');
@@ -8,6 +9,14 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [localAiEndpoint, setLocalAiEndpoint] = useState('http://localhost:1234/v1/chat/completions');
   const [localAiModel, setLocalAiModel] = useState('local-model');
+
+  const [temperature, setTemperature] = useState<number>(0.7);
+  const [maxTokens, setMaxTokens] = useState<number>(2048);
+  const [includeMapContext, setIncludeMapContext] = useState<boolean>(true);
+  const [includeMarkersContext, setIncludeMarkersContext] = useState<boolean>(true);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [activePersonaId, setActivePersonaId] = useState<string | undefined>(undefined);
+
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -19,6 +28,13 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
         if (settings.geminiApiKey) setGeminiApiKey(settings.geminiApiKey);
         if (settings.localAiEndpoint) setLocalAiEndpoint(settings.localAiEndpoint);
         if (settings.localAiModel) setLocalAiModel(settings.localAiModel);
+
+        if (settings.temperature !== undefined) setTemperature(settings.temperature);
+        if (settings.maxTokens !== undefined) setMaxTokens(settings.maxTokens);
+        if (settings.includeMapContext !== undefined) setIncludeMapContext(settings.includeMapContext);
+        if (settings.includeMarkersContext !== undefined) setIncludeMarkersContext(settings.includeMarkersContext);
+        if (settings.personas) setPersonas(settings.personas);
+        if (settings.activePersonaId) setActivePersonaId(settings.activePersonaId);
       }
     };
     loadSettings();
@@ -33,10 +49,28 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
       aiProvider,
       geminiApiKey,
       localAiEndpoint,
-      localAiModel
+      localAiModel,
+      temperature,
+      maxTokens,
+      includeMapContext,
+      includeMarkersContext,
+      personas,
+      activePersonaId
     });
     setIsSaving(false);
     onClose();
+  };
+
+  const addPersona = () => {
+    setPersonas([...personas, { id: uuidv4(), name: 'New Persona', prompt: 'You are a helpful assistant.' }]);
+  };
+
+  const updatePersona = (id: string, updates: Partial<Persona>) => {
+    setPersonas(personas.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+
+  const deletePersona = (id: string) => {
+    setPersonas(personas.filter(p => p.id !== id));
   };
 
   const handleExport = async () => {
@@ -167,18 +201,102 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
             </div>
           </section>
 
-          {/* AI Persona Section */}
+          {/* AI Advanced Generation Parameters */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">AI Persona (Custom Instructions)</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Advanced Parameters</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Temperature: {temperature}</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={temperature}
+                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">Controls randomness. Lower is more deterministic.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max Tokens: {maxTokens}</label>
+                <input
+                  type="number"
+                  value={maxTokens}
+                  onChange={(e) => setMaxTokens(parseInt(e.target.value))}
+                  className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">Maximum length of AI response.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Context Control Section */}
+          <section>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Context Control</h3>
             <p className="text-sm text-gray-500 mb-4">
-              Define how the AI should act. Give it a specific persona, rules, or background knowledge for this profile.
+              Limit what information is sent to the AI to save tokens or improve performance with local models.
             </p>
-            <textarea
-              className="w-full h-40 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="e.g., You are a grumpy dwarf from a fantasy RPG. Always complain about elves, but provide helpful advice about the map and markers."
-            />
+            <div className="flex flex-col gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={includeMapContext} onChange={(e) => setIncludeMapContext(e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-700">Include Current Map Name & Layout Context</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={includeMarkersContext} onChange={(e) => setIncludeMarkersContext(e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-700">Include All Placed Markers & Notes</span>
+              </label>
+            </div>
+          </section>
+
+          {/* AI Personas Section */}
+          <section>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold text-gray-800">Personas (Gems)</h3>
+              <button onClick={addPersona} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                <Plus size={16} /> Add Persona
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Create specific personas or rulesets you can quickly switch between during chat.
+            </p>
+
+            <div className="flex flex-col gap-4">
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h4 className="font-medium text-gray-700 mb-2">Default Base Prompt</h4>
+                <textarea
+                  className="w-full h-24 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="Base instructions applied to all conversations."
+                />
+              </div>
+
+              {personas.map((persona) => (
+                <div key={persona.id} className="border border-gray-200 rounded-lg p-4 bg-white relative">
+                  <button onClick={() => deletePersona(persona.id)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+                    <Trash2 size={16} />
+                  </button>
+                  <div className="mb-2 w-3/4">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={persona.name}
+                      onChange={(e) => updatePersona(persona.id, { name: e.target.value })}
+                      className="w-full border border-gray-200 rounded-md p-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">System Instructions</label>
+                    <textarea
+                      className="w-full h-20 border border-gray-200 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                      value={persona.prompt}
+                      onChange={(e) => updatePersona(persona.id, { prompt: e.target.value })}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
 
           {/* Data Management Section */}

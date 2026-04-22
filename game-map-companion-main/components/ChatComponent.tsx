@@ -80,16 +80,26 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     await db.chatMessages.add(userMessage);
 
     try {
-      let context = 'You are a helpful AI assistant for a game map companion app.\n';
-      if (appSettings?.systemPrompt) {
-        context += `\nSystem Instructions:\n${appSettings.systemPrompt}\n\n`;
+      // Determine active persona prompt
+      let basePrompt = appSettings?.systemPrompt || 'You are a helpful AI assistant for a game map companion app.';
+      if (appSettings?.activePersonaId && appSettings.personas) {
+        const activePersona = appSettings.personas.find(p => p.id === appSettings.activePersonaId);
+        if (activePersona) {
+          basePrompt = activePersona.prompt;
+        }
       }
-      if (currentMap) {
+
+      let context = `${basePrompt}\n\n`;
+
+      if (appSettings?.includeMapContext !== false && currentMap) {
         context += `The user is currently looking at a map named "${currentMap.name}".\n`;
+      }
+
+      if (appSettings?.includeMarkersContext !== false && currentMap) {
         if (currentMarkers && currentMarkers.length > 0) {
           context += `Here are the markers the user has placed on this map:\n`;
           currentMarkers.forEach(m => {
-            context += `- ${m.title}: ${m.notes} (Location: ${m.lat.toFixed(2)}, ${m.lng.toFixed(2)})\n`;
+            context += `- ${m.title}: ${m.notes} (Category: ${m.category || 'General'}) (Location: ${m.lat.toFixed(2)}, ${m.lng.toFixed(2)})\n`;
           });
         } else {
           context += `There are no markers placed on this map yet.\n`;
@@ -173,7 +183,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
            ];
         }
 
-        const payload = {
+        const payload: any = {
           model: localModel,
           messages: [
             { role: 'system', content: context },
@@ -181,6 +191,9 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
             { role: 'user', content: currentUserContent }
           ]
         };
+
+        if (appSettings?.temperature !== undefined) payload.temperature = appSettings.temperature;
+        if (appSettings?.maxTokens !== undefined) payload.max_tokens = appSettings.maxTokens;
 
         const res = await fetch(localEndpoint, {
           method: 'POST',
@@ -198,6 +211,10 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
       } else if (appSettings?.geminiApiKey) {
         // Client-side Gemini (User provided API key)
         const ai = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
+        const config: any = {};
+        if (appSettings?.temperature !== undefined) config.temperature = appSettings.temperature;
+        if (appSettings?.maxTokens !== undefined) config.maxOutputTokens = appSettings.maxTokens;
+
         const response = await ai.models.generateContent({
           model: 'gemini-1.5-flash',
           contents: [
@@ -206,6 +223,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
             ...history,
             { role: 'user', parts: userParts }
           ],
+          config: Object.keys(config).length > 0 ? config : undefined
         });
 
         responseText = response.text || '';
@@ -219,6 +237,8 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
             context,
             history,
             userParts,
+            temperature: appSettings?.temperature,
+            maxTokens: appSettings?.maxTokens
           }),
         });
 
@@ -258,23 +278,49 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     await db.chatMessages.where('profileId').equals(activeProfileId).delete();
   };
 
+  const handlePersonaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newPersonaId = e.target.value;
+    if (appSettings) {
+      await db.settings.put({
+        ...appSettings,
+        activePersonaId: newPersonaId === 'default' ? undefined : newPersonaId
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-neutral-50">
       <div className="p-4 bg-white border-b border-neutral-200 shadow-sm flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
-            <Bot className="w-5 h-5 text-blue-500" />
-            AI Assistant
-          </h2>
-          <p className="text-sm text-neutral-500">Ask questions about your maps, markers, and notes.</p>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-bold text-neutral-800 flex items-center gap-2">
+              <Bot className="w-5 h-5 text-blue-500" />
+              AI Assistant
+            </h2>
+            <button
+              onClick={clearChat}
+              className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+              title="Clear Chat"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-neutral-500 truncate">Ask questions about your maps & markers.</p>
+            {appSettings?.personas && appSettings.personas.length > 0 && (
+              <select
+                className="text-xs bg-gray-100 border border-gray-200 rounded p-1 text-gray-700 outline-none max-w-[150px]"
+                value={appSettings.activePersonaId || 'default'}
+                onChange={handlePersonaChange}
+              >
+                <option value="default">Default Persona</option>
+                {appSettings.personas.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
-        <button 
-          onClick={clearChat}
-          className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-          title="Clear Chat"
-        >
-          <Trash2 className="w-5 h-5" />
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
