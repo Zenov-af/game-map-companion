@@ -35,67 +35,66 @@ If you have a collection of custom icons (e.g., a zip file of PNGs for Skyrim lo
 
 ---
 
-## Guide: Integrating Local AI & Custom Instructions
+## Setup & Installation
 
-If you want to modify this app to use a local AI (like Ollama or LM Studio) or add custom instructions (like Gemini Gems or ChatGPT Custom Instructions), follow these steps:
+Follow these steps to run the application locally on your machine.
 
-### 1. Integrating Local AI (Ollama / LM Studio)
-Most local AI tools provide an OpenAI-compatible API endpoint. To use them, you would replace the Gemini SDK call in `components/ChatComponent.tsx` with a standard `fetch` call to your local server.
+1. **Prerequisites:** Ensure you have [Node.js](https://nodejs.org/) installed (v18 or higher recommended).
+2. **Clone/Download:** Download the project files and open a terminal in the root directory.
+3. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+4. **Run the Development Server:**
+   ```bash
+   npm run dev
+   ```
+5. **Open the App:** Navigate to `http://localhost:3000` in your web browser.
 
-**Example modification in `ChatComponent.tsx`:**
-```typescript
-// Replace the GoogleGenAI block with this:
-const response = await fetch('http://localhost:1234/v1/chat/completions', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    model: 'local-model', // e.g., 'llama3'
-    messages: [
-      { role: 'system', content: context },
-      ...history.map(m => ({ role: m.role, content: m.parts[0].text })),
-      { role: 'user', content: userText }
-    ]
-  })
-});
+---
 
-const data = await response.json();
-const aiText = data.choices[0].message.content;
-```
-*Note: You may need to configure CORS in your local AI server settings to allow requests from the app.*
+## Testing the Advanced AI Features
 
-### 2. Adding Custom Instructions (Like "Gems")
-To give the AI a specific persona (e.g., "Act like a Skyrim Guard" or "You are a Cyberpunk Netrunner"), you can use the `systemInstruction` configuration in the Gemini API.
+This application has been upgraded with massive customizability, specifically targeted at power-users who want to use Local AI (like Ollama or LM Studio) and advanced features. Here is how to test them:
 
-*Note: This feature is now built into the app! You can set a custom System Prompt per profile in the Settings menu.*
+### 1. Memory Palace
+* **What it is:** A global state that the AI always remembers, no matter what map you are currently viewing.
+* **How to test:**
+  1. Open the **Settings** (gear icon in the bottom left).
+  2. Scroll down to **Memory Palace**.
+  3. Add a fact, e.g., "My character is a level 15 stealth archer named Elara".
+  4. Open the Chat and ask "Who is my character?". The AI will know the answer based on the Memory Palace.
 
-**Example modification in `ChatComponent.tsx` (if doing it manually):**
-```typescript
-const response = await ai.models.generateContent({
-  model: 'gemini-3.1-flash-preview',
-  contents: [
-    { role: 'user', parts: [{ text: context }] },
-    { role: 'model', parts: [{ text: 'Understood.' }] },
-    ...history,
-    { role: 'user', parts: [{ text: userText }] }
-  ],
-  config: {
-    // Add your custom instructions here!
-    systemInstruction: "You are a grumpy dwarf from a fantasy RPG. Always complain about elves, but provide helpful advice about the map and markers.",
-  }
-});
-```
+### 2. Personas (Gems)
+* **What it is:** The ability to create specific AI personalities (like Gemini Gems) and hot-swap them during a conversation.
+* **How to test:**
+  1. Open **Settings**. Scroll to the **Personas** section.
+  2. Notice the default **Project ARI** persona is already there. You can add more if you wish.
+  3. Open the Chat. Look at the dropdown menu right below the "AI Assistant" header.
+  4. Switch the dropdown from "Default Persona" to "Project ARI". Ask it a question, and observe its tactical, slightly sarcastic response style.
 
-### 3. Adding "Memories" (Persistent Global Context)
-To make the AI remember things across all maps (e.g., "My character is a stealth archer named Elara"), you can add a new table to the database for `userProfile` or `memories`.
+### 3. Voice Integration (STT & TTS)
+* **What it is:** Native browser-based Speech-To-Text (dictation) and Text-To-Speech (reading responses aloud).
+* **How to test:**
+  1. **Dictation:** Click the **Microphone** icon next to the chat input box. Allow browser microphone permissions if asked. Speak into your mic, and the text will appear in the box.
+  2. **Auto-Read:** Click the **Speaker** icon at the top of the chat panel to turn it blue (ON). Send a message. When the AI responds, your browser will read the response aloud to you.
 
-1. Update `lib/db.ts` to include a `memories` table.
-2. Create a UI in the Sidebar to let the user add facts about their playthrough.
-3. In `ChatComponent.tsx`, fetch these memories and append them to the `context` string before sending the prompt to the AI.
+### 4. Local AI Integration
+* **What it is:** Run your own AI models entirely locally (100% privacy, no API costs) via tools like LM Studio or Ollama.
+* **How to test (with LM Studio):**
+  1. Download and install [LM Studio](https://lmstudio.ai/).
+  2. Download a model (e.g., `llama-3.2-3b-instruct` or a vision model like `llava`).
+  3. Go to the "Local Server" tab in LM Studio. Ensure **CORS is enabled** in the settings on the right panel, and click **Start Server**. Note the port (usually `1234`).
+  4. In the Game Map Companion app, open **Settings**.
+  5. Change the **AI Provider** dropdown to **Local AI**.
+  6. Set the **Local AI Endpoint** to match your LM Studio server (e.g., `http://localhost:1234/v1/chat/completions`).
+  7. Set the **Local Model Name** to match the model you loaded in LM Studio.
+  8. **Optional - Vision Warning:** If you upload an image to the chat while using Local AI, the app will format it using the standard OpenAI Vision API format. Ensure the model you are running actually supports vision (like LLaVA), or you may receive errors from LM Studio.
 
-```typescript
-// Example context injection:
-const memories = await db.memories.toArray();
-let context = 'You are a helpful AI assistant...\n';
-context += 'User Memories:\n' + memories.map(m => `- ${m.text}`).join('\n') + '\n';
-```
+### 5. Advanced Context Controls
+* **What it is:** For local models, token limits can be restrictive. You can now toggle exactly what data is sent to the AI.
+* **How to test:**
+  1. Open **Settings**. Look for **Context Control** and **Advanced Parameters**.
+  2. You can uncheck "Include Map Context" or "Include Markers" to save tokens if your local model is struggling.
+  3. You can also adjust the **Temperature** (creativity) and **Max Tokens** sliders to change how the AI generates text.
 
