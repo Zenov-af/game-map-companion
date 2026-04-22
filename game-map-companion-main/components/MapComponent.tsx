@@ -19,7 +19,6 @@ L.Icon.Default.mergeOptions({
 });
 
 const DEFAULT_ICON = new L.Icon.Default();
-const CATEGORIES = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
 
 function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
   useMapEvents({
@@ -259,7 +258,6 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={drawing.category || 'General'}
                       onChange={(e) => updateDrawing(drawing.id, { category: e.target.value })}
                     >
-                      {CATEGORIES.filter(c => c !== 'All').map(cat => (
                       {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
@@ -336,7 +334,6 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       value={marker.category || 'General'}
                       onChange={(e) => updateMarker(marker.id, { category: e.target.value })}
                     >
-                      {CATEGORIES.filter(c => c !== 'All').map(cat => (
                       {VALID_CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}

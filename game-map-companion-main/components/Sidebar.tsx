@@ -27,18 +27,12 @@ export default function Sidebar({
   const allMarkers = useLiveQuery(() => db.markers.where('profileId').equals(activeProfileId).toArray(), [activeProfileId]);
 
   const mapsById = useMemo(() => {
-    const map = new Map<string, typeof maps[number]>();
+    const map = new Map();
     maps?.forEach(m => map.set(m.id, m));
     return map;
   }, [maps]);
   
   const [searchQuery, setSearchQuery] = useState('');
-
-  const mapsById = useMemo(() => {
-    const map = new Map();
-    maps?.forEach(m => map.set(m.id, m));
-    return map;
-  }, [maps]);
 
   const handleProfileAdd = async () => {
     const name = prompt('Enter new profile name (e.g., "Skyrim", "Cyberpunk"):');
