@@ -130,7 +130,7 @@ export class CompanionDB extends Dexie {
 
       if (defaultSettings) {
         if (!defaultSettings.personas) defaultSettings.personas = [];
-        const hasAri = defaultSettings.personas.find((p: any) => p.id === 'ari-default');
+        const hasAri = defaultSettings.personas.find((p: Persona) => p.id === 'ari-default');
         if (!hasAri) {
           defaultSettings.personas.push(ariPersona);
           await tx.table('settings').put(defaultSettings);
