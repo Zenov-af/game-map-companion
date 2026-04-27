@@ -30,3 +30,19 @@ test('POST returns 500 when GEMINI_API_KEY is missing', async () => {
     }
   }
 });
+
+test('POST returns generic error message on unexpected failure', async () => {
+  // Mock NextRequest-like object that will throw when .json() is called
+  const req = {
+    json: async () => {
+      throw new Error('Database connection failed or some other sensitive info');
+    }
+  } as any;
+
+  const response = await POST(req);
+  const data = await response.json();
+
+  assert.strictEqual(response.status, 500);
+  assert.strictEqual(data.error, 'Failed to generate response from AI.');
+  assert.notStrictEqual(data.error, 'Database connection failed or some other sensitive info');
+});
