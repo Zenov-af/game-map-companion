@@ -68,6 +68,12 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
 
   const categories = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
 
+  // Memoize custom icons into a Map for O(1) lookup during marker rendering
+  const customIconsMap = useMemo(() => {
+    if (!customIcons) return new Map();
+    return new Map(customIcons.map(icon => [icon.id, icon]));
+  }, [customIcons]);
+
   // Memoize filtered lists to avoid redundant calculations on every re-render
   const filteredMarkers = useMemo(() =>
     markers?.filter(m => selectedCategory === 'All' || m.category === selectedCategory),
@@ -287,7 +293,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
         {filteredMarkers?.map(marker => {
           let icon = DEFAULT_ICON;
           if (marker.iconId !== 'default') {
-            const customIcon = customIcons?.find(i => i.id === marker.iconId);
+            const customIcon = customIconsMap.get(marker.iconId);
             if (customIcon) {
               icon = L.icon({
                 iconUrl: customIcon.image,
