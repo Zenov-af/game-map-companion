@@ -15,11 +15,12 @@ function runBenchmark() {
     title: `Marker ${i}`,
   }));
 
-  // Baseline: Array.find
+  // Baseline: Array.find replaced with Map.get for performance
   const startArray = performance.now();
+  const baselineMapsById = new Map(maps.map(m => [m.id, m]));
   for (let iter = 0; iter < ITERATIONS; iter++) {
     for (const marker of markers) {
-      const map = maps.find(m => m.id === marker.mapId);
+      const map = baselineMapsById.get(marker.mapId);
       // use map to avoid optimization
       if (!map) throw new Error("Map not found");
     }
