@@ -3,8 +3,6 @@ const DATA_SCALE = 1000;
 const ITERATIONS = 1000;
 
 function runBenchmark() {
-  console.log(`Running benchmark with ${DATA_SCALE} maps and ${DATA_SCALE} markers, over ${ITERATIONS} iterations...`);
-
   // Setup data
   const maps = Array.from({ length: DATA_SCALE }, (_, i) => ({
     id: `map-${i}`,
@@ -28,7 +26,6 @@ function runBenchmark() {
   }
   const endArray = performance.now();
   const arrayTime = endArray - startArray;
-  console.log(`Array.find total time: ${arrayTime.toFixed(2)}ms`);
 
   // Optimized: Map.get
   const startMapSetup = performance.now();
@@ -46,12 +43,23 @@ function runBenchmark() {
   const endMap = performance.now();
   const mapLookupTime = endMap - startMap;
 
-  console.log(`Map setup time: ${mapSetupTime.toFixed(2)}ms`);
-  console.log(`Map.get total time: ${mapLookupTime.toFixed(2)}ms`);
-  console.log(`Map total time (setup + lookup): ${(mapSetupTime + mapLookupTime).toFixed(2)}ms`);
+  const totalMapTime = mapSetupTime + mapLookupTime;
+  const improvement = (arrayTime / totalMapTime).toFixed(2);
 
-  const improvement = (arrayTime / (mapSetupTime + mapLookupTime)).toFixed(2);
-  console.log(`Performance improvement: ${improvement}x`);
+  return {
+    config: {
+      dataScale: DATA_SCALE,
+      iterations: ITERATIONS
+    },
+    results: {
+      arrayFindTotalTimeMs: arrayTime.toFixed(2),
+      mapSetupTimeMs: mapSetupTime.toFixed(2),
+      mapGetTotalTimeMs: mapLookupTime.toFixed(2),
+      mapTotalTimeMs: totalMapTime.toFixed(2),
+      performanceImprovement: `${improvement}x`
+    }
+  };
 }
 
-runBenchmark();
+const benchmarkResults = runBenchmark();
+console.log(JSON.stringify(benchmarkResults, null, 2));
