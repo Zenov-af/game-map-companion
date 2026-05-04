@@ -4,8 +4,28 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
+import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
 import { GoogleGenAI, Part } from '@google/genai';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+interface OpenAIMessageContent {
+  type: 'text' | 'image_url';
+  text?: string;
+  image_url?: { url: string };
+}
+
+interface OpenAIMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string | OpenAIMessageContent[];
+}
+
+interface OpenAIPayload {
+  model: string;
+  messages: OpenAIMessage[];
+  temperature?: number;
+  max_tokens?: number;
+}
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
@@ -220,8 +240,8 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         const localModel = appSettings?.localAiModel || 'local-model';
 
         // Convert chat history to OpenAI format, supporting multi-modal content if images are present
-        const localHistory = chatHistory.map(m => {
-          let content: any = m.text || '';
+        const localHistory: OpenAIMessage[] = chatHistory.map(m => {
+          let content: string | OpenAIMessageContent[] = m.text || '';
 
           if (m.imageData) {
             content = [
@@ -236,7 +256,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           };
         });
 
-        let currentUserContent: any = userText;
+        let currentUserContent: string | OpenAIMessageContent[] = userText;
         if (imageData) {
            currentUserContent = [
              { type: 'text', text: userText },
@@ -244,7 +264,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
            ];
         }
 
-        const payload: any = {
+        const payload: OpenAIPayload = {
           model: localModel,
           messages: [
             { role: 'system', content: context },
