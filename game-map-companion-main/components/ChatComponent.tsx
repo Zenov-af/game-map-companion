@@ -326,13 +326,14 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           speakText(cleanText);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       await db.chatMessages.add({
         id: uuidv4(),
         profileId: activeProfileId,
         role: 'model',
-        text: `Sorry, I encountered an error: ${error.message}`,
+        text: `Sorry, I encountered an error: ${errorMessage}`,
         timestamp: Date.now(),
       });
     } finally {
