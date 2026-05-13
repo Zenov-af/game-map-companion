@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type GenerationConfig } from '@google/genai';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const ai = new GoogleGenAI({ apiKey });
-    const config: any = {};
+    const config: GenerationConfig = {};
     if (temperature !== undefined) config.temperature = temperature;
     if (maxTokens !== undefined) config.maxOutputTokens = maxTokens;
 

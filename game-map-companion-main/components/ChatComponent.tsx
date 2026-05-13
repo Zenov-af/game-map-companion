@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
-import { GoogleGenAI, Part } from '@google/genai';
+import { GoogleGenAI, Part, type GenerationConfig } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -292,7 +292,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
       } else if (appSettings?.geminiApiKey) {
         // Client-side Gemini (User provided API key)
         const ai = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
-        const config: any = {};
+        const config: GenerationConfig = {};
         if (appSettings?.temperature !== undefined) config.temperature = appSettings.temperature;
         if (appSettings?.maxTokens !== undefined) config.maxOutputTokens = appSettings.maxTokens;
 
