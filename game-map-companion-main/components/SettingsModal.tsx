@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, Persona } from '@/lib/db';
 import { X, Download, Upload, Save, Plus, Trash2 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 
 export default function SettingsModal({ activeProfileId, onClose }: { activeProfileId: string, onClose: () => void }) {
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful AI assistant for a game map companion app.');
@@ -62,7 +61,7 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
   };
 
   const addPersona = () => {
-    setPersonas([...personas, { id: uuidv4(), name: 'New Persona', prompt: 'You are a helpful assistant.' }]);
+    setPersonas([...personas, { id: crypto.randomUUID(), name: 'New Persona', prompt: 'You are a helpful assistant.' }]);
   };
 
   const updatePersona = (id: string, updates: Partial<Persona>) => {

@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { v4 as uuidv4 } from 'uuid';
-import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
+import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Part } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
@@ -124,7 +125,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     setIsLoading(true);
 
     const userMessage = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       profileId: activeProfileId,
       role: 'user' as const,
       text: userText,
@@ -314,7 +315,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
 
       if (responseText) {
         await db.chatMessages.add({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           profileId: activeProfileId,
           role: 'model',
           text: responseText,
@@ -329,7 +330,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     } catch (error: any) {
       console.error('Chat error:', error);
       await db.chatMessages.add({
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         profileId: activeProfileId,
         role: 'model',
         text: `Sorry, I encountered an error: ${error.message}`,
