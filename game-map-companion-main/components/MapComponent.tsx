@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { MapContainer, ImageOverlay, Marker as LeafletMarker, Popup, useMapEvents, useMap, Polyline, Polygon } from 'react-leaflet';
+import { useState, useMemo } from 'react';
+import { MapContainer, ImageOverlay, Marker as LeafletMarker, Popup, Polyline, Polygon } from 'react-leaflet';
 import L from 'leaflet';
+import { MapEvents } from './map/MapEvents';
+import { MapUpdater } from './map/MapUpdater';
+import { MapInteractionManager } from './map/MapInteractionManager';
 import 'leaflet/dist/leaflet.css';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { v4 as uuidv4 } from 'uuid';
 import { PenTool, Hexagon, MapPin, Check, X } from 'lucide-react';
 
 // Workaround for Leaflet default icon pathing issues in Next.js.
@@ -19,37 +21,6 @@ L.Icon.Default.mergeOptions({
 });
 
 const DEFAULT_ICON = new L.Icon.Default();
-
-function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
-  useMapEvents({
-    click(e) {
-      onMapClick(e.latlng);
-    },
-  });
-  return null;
-}
-
-function MapUpdater({ bounds }: { bounds: L.LatLngBoundsExpression }) {
-  const map = useMap();
-  useEffect(() => {
-    map.fitBounds(bounds);
-  }, [bounds, map]);
-  return null;
-}
-
-function MapInteractionManager({ interactionMode }: { interactionMode: string }) {
-  const map = useMap();
-  useEffect(() => {
-    if (interactionMode !== 'none') {
-      map.dragging.disable();
-      map.getContainer().style.cursor = 'crosshair';
-    } else {
-      map.dragging.enable();
-      map.getContainer().style.cursor = '';
-    }
-  }, [interactionMode, map]);
-  return null;
-}
 
 const CATEGORIES = ['All', 'General', 'Quests', 'Loot', 'Enemies', 'Merchants', 'Locations'];
 const VALID_CATEGORIES = CATEGORIES.filter(c => c !== 'All');
@@ -95,7 +66,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
     
     if (interactionMode === 'marker') {
       await db.markers.add({
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         profileId: activeProfileId,
         mapId: mapData.id,
         lat: latlng.lat,
@@ -115,7 +86,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
     if (currentPoints.length < 2 || !mapData) return;
     
     await db.drawings.add({
-      id: uuidv4(),
+        id: crypto.randomUUID(),
       profileId: activeProfileId,
       mapId: mapData.id,
       type: interactionMode as 'line' | 'polygon',
