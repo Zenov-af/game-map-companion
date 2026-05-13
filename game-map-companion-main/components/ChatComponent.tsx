@@ -172,18 +172,14 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
       if (appSettings?.includeMarkersContext !== false && currentMap) {
         if (currentMarkers && currentMarkers.length > 0) {
           context += `Here are the markers the user has placed on this map:\n`;
-          currentMarkers.forEach(m => {
-            context += `- ${m.title}: ${m.notes} (Category: ${m.category || 'General'}) (Location: ${m.lat.toFixed(2)}, ${m.lng.toFixed(2)})\n`;
-          });
+          context += currentMarkers.map(m => `- ${m.title}: ${m.notes} (Category: ${m.category || 'General'}) (Location: ${m.lat.toFixed(2)}, ${m.lng.toFixed(2)})\n`).join('');
         } else {
           context += `There are no markers placed on this map yet.\n`;
         }
 
         if (currentDrawings && currentDrawings.length > 0) {
           context += `Here are the drawings/territories the user has made on this map:\n`;
-          currentDrawings.forEach(d => {
-            context += `- [${d.type.toUpperCase()}] ${d.title}: ${d.notes} (Category: ${d.category || 'General'})\n`;
-          });
+          context += currentDrawings.map(d => `- [${d.type.toUpperCase()}] ${d.title}: ${d.notes} (Category: ${d.category || 'General'})\n`).join('');
         }
       }
 
