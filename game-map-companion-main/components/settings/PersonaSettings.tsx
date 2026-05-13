@@ -23,7 +23,7 @@ export function PersonaSettings({
     <section>
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-semibold text-gray-800">Personas (Gems)</h3>
-        <button onClick={addPersona} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">
+        <button onClick={addPersona} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium" data-testid="add-persona-button">
           <Plus size={16} /> Add Persona
         </button>
       </div>
@@ -39,12 +39,13 @@ export function PersonaSettings({
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
             placeholder="Base instructions applied to all conversations."
+            data-testid="system-prompt-textarea"
           />
         </div>
 
         {personas.map((persona) => (
-          <div key={persona.id} className="border border-gray-200 rounded-lg p-4 bg-white relative">
-            <button onClick={() => deletePersona(persona.id)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500">
+          <div key={persona.id} className="border border-gray-200 rounded-lg p-4 bg-white relative" data-testid={`persona-item-${persona.id}`}>
+            <button onClick={() => deletePersona(persona.id)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500" data-testid={`delete-persona-${persona.id}`}>
               <Trash2 size={16} />
             </button>
             <div className="mb-2 w-3/4">
@@ -54,6 +55,7 @@ export function PersonaSettings({
                 value={persona.name}
                 onChange={(e) => updatePersona(persona.id, { name: e.target.value })}
                 className="w-full border border-gray-200 rounded-md p-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                data-testid={`persona-name-${persona.id}`}
               />
             </div>
             <div>
@@ -62,6 +64,7 @@ export function PersonaSettings({
                 className="w-full h-20 border border-gray-200 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                 value={persona.prompt}
                 onChange={(e) => updatePersona(persona.id, { prompt: e.target.value })}
+                data-testid={`persona-prompt-${persona.id}`}
               />
             </div>
           </div>
