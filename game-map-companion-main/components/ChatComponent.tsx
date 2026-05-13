@@ -107,6 +107,41 @@ interface OpenAIPayload {
   max_tokens?: number;
 }
 
+function isSafeUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+
+    // 1. Enforce allowed protocols
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return false;
+    }
+
+    const hostname = url.hostname;
+
+    // 2. Allow specific loopback addresses for Local AI development
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') {
+      return true;
+    }
+
+    // 3. Block Private/Internal IPv4 Addresses (RFC 1918) and Cloud Metadata
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+
+    if (ipRegex.test(hostname)) {
+      const parts = hostname.split('.').map(Number);
+      if (parts[0] === 10) return false;
+      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return false;
+      if (parts[0] === 192 && parts[1] === 168) return false;
+      if (parts[0] === 169 && parts[1] === 254) return false;
+      if (parts[0] === 0) return false;
+    }
+
+    return true;
+  } catch (e) {
+    // If URL parsing fails, it's unsafe
+    return false;
+  }
+}
+
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -323,6 +358,10 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
 
         if (appSettings?.temperature !== undefined) payload.temperature = appSettings.temperature;
         if (appSettings?.maxTokens !== undefined) payload.max_tokens = appSettings.maxTokens;
+
+        if (!isSafeUrl(localEndpoint)) {
+          throw new Error('Invalid or unsafe Local AI endpoint URL. Please check your settings.');
+        }
 
         const res = await fetch(localEndpoint, {
           method: 'POST',
