@@ -56,6 +56,11 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
     [drawings, selectedCategory]
   );
 
+  const otherMaps = useMemo(() =>
+    allMaps?.filter(m => m.id !== mapData?.id),
+    [allMaps, mapData?.id]
+  );
+
   const bounds = useMemo(() => {
     if (!mapData) return null;
     return [[0, 0], [mapData.height, mapData.width]] as L.LatLngBoundsExpression;
@@ -324,7 +329,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
                       onChange={(e) => updateMarker(marker.id, { linkedMapId: e.target.value })}
                     >
                       <option value="">None</option>
-                      {allMaps?.filter(m => m.id !== mapData.id).map(m => (
+                      {otherMaps?.map(m => (
                         <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
                     </select>
