@@ -33,6 +33,9 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
 import { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
 import { GoogleGenAI, Part } from '@google/genai';
@@ -193,7 +196,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     setIsLoading(true);
 
     const userMessage = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       profileId: activeProfileId,
       role: 'user' as const,
       text: userText,
@@ -270,6 +273,157 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           }
         });
       }
+      if (userText) {
+        userParts.push({ text: userText });
+      }
+
+      const contents = [
+        { role: 'user', parts: [{ text: context }] },
+        { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+        ...history,
+        { role: 'user', parts: userParts }
+      ];
+
+      const chatHistory = messages?.slice(-10) || [];
+      let responseText = '';
+
+      if (appSettings?.aiProvider === 'local') {
+        const localEndpoint = appSettings?.localAiEndpoint || 'http://localhost:1234/v1/chat/completions';
+        const localModel = appSettings?.localAiModel || 'local-model';
+
+        // Convert chat history to OpenAI format, supporting multi-modal content if images are present
+        const localHistory = chatHistory.map(m => {
+          let content: any = m.text || '';
+
+          if (m.imageData) {
+            content = [
+              { type: 'text', text: m.text || '' },
+              { type: 'image_url', image_url: { url: m.imageData } }
+            ];
+          }
+
+          return {
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content
+          };
+        });
+
+        let currentUserContent: any = userText;
+        if (imageData) {
+           currentUserContent = [
+             { type: 'text', text: userText },
+             { type: 'image_url', image_url: { url: imageData } }
+           ];
+        }
+
+        const payload: any = {
+          model: localModel,
+          messages: [
+            { role: 'system', content: context },
+            ...localHistory,
+            { role: 'user', content: currentUserContent }
+          ]
+        };
+
+        if (appSettings?.temperature !== undefined) payload.temperature = appSettings.temperature;
+        if (appSettings?.maxTokens !== undefined) payload.max_tokens = appSettings.maxTokens;
+
+        const res = await fetch(localEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          throw new Error(`Local AI request failed: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        responseText = data.choices[0].message.content;
+
+      } else if (appSettings?.geminiApiKey) {
+        // Client-side Gemini (User provided API key)
+        const ai = new GoogleGenAI({ apiKey: appSettings.geminiApiKey });
+        const config: any = {};
+        if (appSettings?.temperature !== undefined) config.temperature = appSettings.temperature;
+        if (appSettings?.maxTokens !== undefined) config.maxOutputTokens = appSettings.maxTokens;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: [
+            { role: 'user', parts: [{ text: context }] },
+            { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
+            ...history,
+            { role: 'user', parts: userParts }
+          ],
+          config: Object.keys(config).length > 0 ? config : undefined
+        });
+
+        responseText = response.text || '';
+
+      } else {
+        // Server-side Proxy (Default)
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context,
+            history,
+            userParts,
+            temperature: appSettings?.temperature,
+            maxTokens: appSettings?.maxTokens
+          }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to get AI response');
+        }
+
+        const data = await res.json();
+        responseText = data.text;
+      }
+
+      if (responseText) {
+        await db.chatMessages.add({
+          id: crypto.randomUUID(),
+          profileId: activeProfileId,
+          role: 'model',
+          text: responseText,
+          timestamp: Date.now(),
+        });
+        if (autoSpeak) {
+          // Strip out markdown or tool bracket text for cleaner reading
+          const cleanText = responseText.replace(/\[Action:.*?\]/g, '').replace(/[*_#`]/g, '');
+          speakText(cleanText);
+        }
+      }
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      await db.chatMessages.add({
+        id: crypto.randomUUID(),
+        profileId: activeProfileId,
+        role: 'model',
+        text: `Sorry, I encountered an error: ${error.message}`,
+        timestamp: Date.now(),
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearChat = async () => {
+    await db.chatMessages.where('profileId').equals(activeProfileId).delete();
+  };
+
+  const handlePersonaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newPersonaId = e.target.value;
+    if (appSettings) {
+      await db.settings.put({
+        ...appSettings,
+        activePersonaId: newPersonaId === 'default' ? undefined : newPersonaId
+      });
+    }
     });
   };
 

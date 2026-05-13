@@ -66,7 +66,7 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
   };
 
   const addPersona = () => {
-    setPersonas([...personas, { id: uuidv4(), name: 'New Persona', prompt: 'You are a helpful assistant.' }]);
+    setPersonas([...personas, { id: crypto.randomUUID(), name: 'New Persona', prompt: 'You are a helpful assistant.' }]);
   };
 
   const updatePersona = (id: string, updates: Partial<Persona>) => {

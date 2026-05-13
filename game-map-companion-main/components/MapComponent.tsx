@@ -9,7 +9,6 @@ import { MapInteractionManager } from './map/MapInteractionManager';
 import 'leaflet/dist/leaflet.css';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { v4 as uuidv4 } from 'uuid';
 import { PenTool, Hexagon, MapPin, Check, X } from 'lucide-react';
 
 // Workaround for Leaflet default icon pathing issues in Next.js.
@@ -67,7 +66,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
     
     if (interactionMode === 'marker') {
       await db.markers.add({
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         profileId: activeProfileId,
         mapId: mapData.id,
         lat: latlng.lat,
@@ -87,7 +86,7 @@ export default function MapComponent({ mapId, onSelectMap, activeProfileId }: { 
     if (currentPoints.length < 2 || !mapData) return;
     
     await db.drawings.add({
-      id: uuidv4(),
+        id: crypto.randomUUID(),
       profileId: activeProfileId,
       mapId: mapData.id,
       type: interactionMode as 'line' | 'polygon',
