@@ -1,8 +1,8 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert';
-// @ts-ignore
-import { renderHook } from 'react';
-import { useIsMobile } from './use-mobile.ts';
+import { useIsMobile } from './use-mobile';
+import { renderHook } from '@testing-library/react';
+import '../test-setup';
 
 // Mock window and matchMedia
 const createMockMql = (matches: boolean) => {
@@ -27,51 +27,47 @@ let mockMql: ReturnType<typeof createMockMql>;
 
 beforeEach(() => {
   // @ts-ignore
-  global.window = {
-    innerWidth: 1024,
-    matchMedia: (query: string) => {
-      // Parse max-width from query like "(max-width: 767px)"
-      const match = query.match(/\(max-width:\s*(\d+)px\)/);
-      const maxWidth = match ? parseInt(match[1], 10) : 0;
-      mockMql = createMockMql(window.innerWidth <= maxWidth);
-      return mockMql;
-    }
+  global.window.innerWidth = 1024;
+  global.window.matchMedia = (query: string) => {
+    // Parse max-width from query like "(max-width: 767px)"
+    const match = query.match(/\(max-width:\s*(\d+)px\)/);
+    const maxWidth = match ? parseInt(match[1], 10) : 0;
+    mockMql = createMockMql(global.window.innerWidth <= maxWidth);
+    return mockMql as any;
   };
 });
 
 test('useIsMobile returns false initially on desktop', () => {
-  // @ts-ignore
-  window.innerWidth = 1024;
-  const { result, rerender } = renderHook(() => useIsMobile());
-  // Initial render (before effect)
-  assert.strictEqual(result.current, false);
-  // After effect
-  rerender();
+  global.window.innerWidth = 1024;
+  const { result } = renderHook(() => useIsMobile());
   assert.strictEqual(result.current, false, 'Should be false on desktop (1024px)');
 });
 
 test('useIsMobile returns true on mobile after mount', () => {
-  // @ts-ignore
-  window.innerWidth = 500;
-  const { result, rerender } = renderHook(() => useIsMobile());
-  // After effect has run and we rerender
-  rerender();
+  global.window.innerWidth = 500;
+  const { result } = renderHook(() => useIsMobile());
   assert.strictEqual(result.current, true, 'Should be true on mobile (500px)');
 });
 
-test('useIsMobile updates state on window resize/matchMedia change', () => {
+test('useIsMobile updates state on window resize/matchMedia change', async () => {
   // Start as desktop
-  // @ts-ignore
-  window.innerWidth = 1024;
-  const { result, rerender } = renderHook(() => useIsMobile());
+  global.window.innerWidth = 1024;
+  const { result } = renderHook(() => useIsMobile());
   assert.strictEqual(result.current, false);
 
-  // Change to mobile
-  // @ts-ignore
-  window.innerWidth = 500;
-  mockMql.__triggerChange();
-  // We need to rerender to get the new state in our simple mock
-  rerender();
+  // Change to mobile by manually simulating the resize event/matchMedia trigger
+  global.window.innerWidth = 500;
+
+  // Actually we need to just update the existing one and trigger the event
+  mockMql.matches = true;
+  const { act } = await import('@testing-library/react');
+  act(() => {
+    mockMql.__triggerChange();
+  });
+
+  // Wait for the next tick to allow state to update in React
+  await new Promise(resolve => setTimeout(resolve, 0));
+
   assert.strictEqual(result.current, true);
 });
 
