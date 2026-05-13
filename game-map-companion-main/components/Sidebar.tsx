@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
 import { Map as MapIcon, Image as ImageIcon, MessageSquare, Plus, Trash2, Settings, Search } from 'lucide-react';
 
 export default function Sidebar({ 
@@ -37,7 +36,7 @@ export default function Sidebar({
   const handleProfileAdd = async () => {
     const name = prompt('Enter new profile name (e.g., "Skyrim", "Cyberpunk"):');
     if (name) {
-      const id = uuidv4();
+      const id = crypto.randomUUID();
       await db.profiles.add({ id, name });
       onProfileChange(id);
     }
@@ -52,7 +51,7 @@ export default function Sidebar({
       const img = new Image();
       img.onload = async () => {
         const newMap = {
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           profileId: activeProfileId,
           name: file.name.replace(/\.[^/.]+$/, ""),
           image: event.target?.result as string,
@@ -75,7 +74,7 @@ export default function Sidebar({
       const reader = new FileReader();
       reader.onload = async (event) => {
         await db.customIcons.add({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           profileId: activeProfileId,
           name: file.name.replace(/\.[^/.]+$/, ""),
           image: event.target?.result as string,
