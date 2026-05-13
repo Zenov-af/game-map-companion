@@ -5,7 +5,35 @@ import { GoogleGenAI } from '@google/genai';
 
 export async function POST(req: NextRequest) {
   try {
-    const { context, history, userParts, temperature, maxTokens } = await req.json();
+    const body = await req.json();
+    const { context, history, userParts, temperature, maxTokens } = body;
+
+    // Validation
+    if (typeof context !== 'string' || context.trim().length === 0 || context.length > 10000) {
+      return NextResponse.json({ error: 'Invalid context: must be a non-empty string under 10,000 characters.' }, { status: 400 });
+    }
+
+    if (!Array.isArray(history) || history.length > 50) {
+      return NextResponse.json({ error: 'Invalid history: must be an array with up to 50 items.' }, { status: 400 });
+    }
+
+    for (const msg of history) {
+      if (!msg || typeof msg !== 'object' || !['user', 'model'].includes(msg.role) || !Array.isArray(msg.parts)) {
+        return NextResponse.json({ error: 'Invalid history item: each item must have a valid role and parts array.' }, { status: 400 });
+      }
+    }
+
+    if (!Array.isArray(userParts) || userParts.length === 0 || userParts.length > 10) {
+      return NextResponse.json({ error: 'Invalid userParts: must be a non-empty array with up to 10 items.' }, { status: 400 });
+    }
+
+    if (temperature !== undefined && (typeof temperature !== 'number' || temperature < 0 || temperature > 2)) {
+      return NextResponse.json({ error: 'Invalid temperature: must be a number between 0 and 2.' }, { status: 400 });
+    }
+
+    if (maxTokens !== undefined && (typeof maxTokens !== 'number' || maxTokens <= 0 || maxTokens > 4096)) {
+      return NextResponse.json({ error: 'Invalid maxTokens: must be a positive number up to 4096.' }, { status: 400 });
+    }
 
     const apiKey = process.env.GEMINI_API_KEY;
 
