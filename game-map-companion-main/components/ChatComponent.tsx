@@ -1,4 +1,6 @@
 'use client';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { useEffect, useRef } from 'react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
