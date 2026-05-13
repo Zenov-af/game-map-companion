@@ -1,93 +1,8 @@
-'use client';
-
-import { useEffect, useRef } from 'react';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
-import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
-import { useChat } from '@/hooks/useChat';
-import { ChatHeader } from './chat/ChatHeader';
-import { ChatMessageList } from './chat/ChatMessageList';
-import { ChatInput } from './chat/ChatInput';
-
-export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
-  const {
-    input,
-    setInput,
-    isLoading,
-    selectedImage,
-    setSelectedImage,
-    autoSpeak,
-    setAutoSpeak,
-    messages,
-    appSettings,
-    clearChat,
-    handleImageUpload,
-    handleSend,
-    handlePersonaChange
-  } = useChat(activeProfileId, currentMapId);
-
-  const { isListening, toggleListening } = useSpeechRecognition((transcript) => {
-    setInput(prev => prev + (prev ? ' ' : '') + transcript);
-  });
-
-  const { speakText } = useSpeechSynthesis();
-import { useState, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { v4 as uuidv4 } from 'uuid';
-import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
 import { GoogleGenAI, Part } from '@google/genai';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-
-// --- Web Speech API Interfaces ---
-interface SpeechRecognitionResult {
-  readonly isFinal: boolean;
-  [index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionAlternative {
-  readonly transcript: string;
-  readonly confidence: number;
-}
-
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionEvent extends Event {
-  readonly results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-  readonly message: string;
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-interface SpeechRecognitionConstructor {
-  new (): SpeechRecognition;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: SpeechRecognitionConstructor;
-    webkitSpeechRecognition: SpeechRecognitionConstructor;
-  }
-}
 
 interface OpenAIMessageContent {
   type: 'text' | 'image_url';
@@ -107,71 +22,53 @@ interface OpenAIPayload {
   max_tokens?: number;
 }
 
-export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
+export function useChat(activeProfileId: string, currentMapId: string | null) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [isListening, setIsListening] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messages = useLiveQuery(
+    () => db.chatMessages.where('profileId').equals(activeProfileId).sortBy('timestamp'),
+    [activeProfileId]
+  );
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const currentMap = useLiveQuery(
+    async () => {
+      if (!currentMapId) return undefined;
+      return await db.maps.get(currentMapId);
+    },
+    [currentMapId]
+  );
 
-  const onSend = () => {
-    handleSend((text) => {
-      if (autoSpeak) {
-        speakText(text);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
+  const currentDrawings = useLiveQuery(
+    async () => {
+      if (!currentMapId) return [];
+      return await db.drawings.where('mapId').equals(currentMapId).toArray();
+    },
+    [currentMapId]
+  );
 
-        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = event.results[0][0].transcript;
-          setInput(prev => prev + (prev ? ' ' : '') + transcript);
-          setIsListening(false);
-        };
+  const currentMarkers = useLiveQuery(
+    async () => {
+      if (!currentMapId) return [];
+      return await db.markers.where('mapId').equals(currentMapId).toArray();
+    },
+    [currentMapId]
+  );
 
-        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-          console.error('Speech recognition error', event.error);
-          setIsListening(false);
-        };
+  const appSettings = useLiveQuery(
+    async () => {
+      return await db.settings.where('profileId').equals(activeProfileId).first();
+    },
+    [activeProfileId]
+  );
 
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
-      }
-    }
-  }, []);
+  const clearChat = useCallback(async () => {
+    await db.chatMessages.where('profileId').equals(activeProfileId).delete();
+  }, [activeProfileId]);
 
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-    } else {
-      recognitionRef.current?.start();
-      setIsListening(true);
-    }
-  };
-
-  const speakText = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImageUpload = useCallback((file: File | undefined) => {
     if (!file) return;
 
     const reader = new FileReader();
@@ -181,12 +78,9 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
       }
     };
     reader.readAsDataURL(file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  }, []);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async (onResponse?: (text: string) => void) => {
     if ((!input.trim() && !selectedImage) || isLoading) return;
 
     const userText = input.trim();
@@ -196,7 +90,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     setIsLoading(true);
 
     const userMessage = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       profileId: activeProfileId,
       role: 'user' as const,
       text: userText,
@@ -256,12 +150,12 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
           parts.push({ text: m.text });
         }
         return {
-          role: m.role === 'user' ? 'user' : 'model',
-          parts,
+          role: m.role,
+          parts
         };
       }) || [];
 
-      // Prepare current user parts
+      // Prepare User Parts
       const userParts: Part[] = [];
       if (imageData) {
         const base64Data = imageData.split(',')[1];
@@ -277,38 +171,29 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
         userParts.push({ text: userText });
       }
 
-      const contents = [
-        { role: 'user', parts: [{ text: context }] },
-        { role: 'model', parts: [{ text: 'Understood. I will use this context to help the user.' }] },
-        ...history,
-        { role: 'user', parts: userParts }
-      ];
-
-      const chatHistory = messages?.slice(-10) || [];
       let responseText = '';
 
       if (appSettings?.aiProvider === 'local') {
-        const localEndpoint = appSettings?.localAiEndpoint || 'http://localhost:1234/v1/chat/completions';
-        const localModel = appSettings?.localAiModel || 'local-model';
+        const localEndpoint = appSettings.localAiEndpoint || 'http://localhost:1234/v1/chat/completions';
+        const localModel = appSettings.localAiModel || 'llama-3.2-3b-instruct';
 
-        // Convert chat history to OpenAI format, supporting multi-modal content if images are present
-        const localHistory = chatHistory.map(m => {
-          let content: any = m.text || '';
-
+        const localHistory: OpenAIMessage[] = messages?.slice(-10).map(m => {
           if (m.imageData) {
-            content = [
-              { type: 'text', text: m.text || '' },
-              { type: 'image_url', image_url: { url: m.imageData } }
-            ];
+             return {
+               role: m.role === 'model' ? 'assistant' : 'user',
+               content: [
+                 { type: 'text', text: m.text || '' },
+                 { type: 'image_url', image_url: { url: m.imageData } }
+               ]
+             };
           }
-
           return {
-            role: m.role === 'user' ? 'user' : 'assistant',
-            content
+            role: m.role === 'model' ? 'assistant' : 'user',
+            content: m.text || ''
           };
-        });
+        }) || [];
 
-        let currentUserContent: any = userText;
+        let currentUserContent: string | OpenAIMessageContent[] = userText;
         if (imageData) {
            currentUserContent = [
              { type: 'text', text: userText },
@@ -316,7 +201,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
            ];
         }
 
-        const payload: any = {
+        const payload: OpenAIPayload = {
           model: localModel,
           messages: [
             { role: 'system', content: context },
@@ -386,72 +271,55 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
 
       if (responseText) {
         await db.chatMessages.add({
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           profileId: activeProfileId,
           role: 'model',
           text: responseText,
           timestamp: Date.now(),
         });
-        if (autoSpeak) {
+        if (autoSpeak && onResponse) {
           // Strip out markdown or tool bracket text for cleaner reading
           const cleanText = responseText.replace(/\[Action:.*?\]/g, '').replace(/[*_#`]/g, '');
-          speakText(cleanText);
+          onResponse(cleanText);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       await db.chatMessages.add({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         profileId: activeProfileId,
         role: 'model',
-        text: `Sorry, I encountered an error: ${error.message}`,
+        text: `Sorry, I encountered an error: ${errorMessage}`,
         timestamp: Date.now(),
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, selectedImage, isLoading, activeProfileId, appSettings, currentMap, currentMarkers, currentDrawings, messages, autoSpeak]);
 
-  const clearChat = async () => {
-    await db.chatMessages.where('profileId').equals(activeProfileId).delete();
-  };
-
-  const handlePersonaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newPersonaId = e.target.value;
+  const handlePersonaChange = useCallback(async (newPersonaId: string) => {
     if (appSettings) {
       await db.settings.put({
         ...appSettings,
         activePersonaId: newPersonaId === 'default' ? undefined : newPersonaId
       });
     }
-    });
+  }, [appSettings]);
+
+  return {
+    input,
+    setInput,
+    isLoading,
+    selectedImage,
+    setSelectedImage,
+    autoSpeak,
+    setAutoSpeak,
+    messages,
+    appSettings,
+    clearChat,
+    handleImageUpload,
+    handleSend,
+    handlePersonaChange
   };
-
-  return (
-    <div className="flex flex-col h-full bg-neutral-50">
-      <ChatHeader
-        onClearChat={clearChat}
-        appSettings={appSettings}
-        onPersonaChange={(e) => handlePersonaChange(e.target.value)}
-      />
-
-      <ChatMessageList
-        messages={messages}
-        isLoading={isLoading}
-        messagesEndRef={messagesEndRef}
-      />
-
-      <ChatInput
-        input={input}
-        setInput={setInput}
-        isLoading={isLoading}
-        selectedImage={selectedImage}
-        setSelectedImage={setSelectedImage}
-        isListening={isListening}
-        toggleListening={toggleListening}
-        onSend={onSend}
-        onImageUpload={handleImageUpload}
-      />
-    </div>
-  );
 }
