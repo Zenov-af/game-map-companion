@@ -78,14 +78,24 @@ export default function SettingsModal({ activeProfileId, onClose }: { activeProf
   };
 
   const handleExport = async () => {
+    const [profiles, maps, markers, drawings, customIcons, chatMessages, settings] = await Promise.all([
+      db.profiles.toArray(),
+      db.maps.toArray(),
+      db.markers.toArray(),
+      db.drawings.toArray(),
+      db.customIcons.toArray(),
+      db.chatMessages.toArray(),
+      db.settings.toArray(),
+    ]);
+
     const data = {
-      profiles: await db.profiles.toArray(),
-      maps: await db.maps.toArray(),
-      markers: await db.markers.toArray(),
-      drawings: await db.drawings.toArray(),
-      customIcons: await db.customIcons.toArray(),
-      chatMessages: await db.chatMessages.toArray(),
-      settings: await db.settings.toArray(),
+      profiles,
+      maps,
+      markers,
+      drawings,
+      customIcons,
+      chatMessages,
+      settings,
     };
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
