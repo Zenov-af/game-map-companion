@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "clean": "next clean",
+    "test": "node --test --experimental-strip-types app/api/chat/route.test.ts lib/utils.test.ts && npx tsx --test hooks/use-mobile.test.ts components/settings/LLMSettings.test.tsx"
     "test": "node scripts/test.js"
   },
   "dependencies": {
@@ -36,6 +37,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.11",
     "@tailwindcss/typography": "^0.5.19",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/dom-speech-recognition": "^0.0.10",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",

@@ -10,6 +10,9 @@ global.document = window.document;
 
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert';
+import { useIsMobile } from './use-mobile';
+import { renderHook } from '@testing-library/react';
+import '../test-setup';
 import { renderHook, act } from '@testing-library/react';
 import { useIsMobile } from './use-mobile.ts';
 
@@ -42,6 +45,8 @@ beforeEach(() => {
     // Parse max-width from query like "(max-width: 767px)"
     const match = query.match(/\(max-width:\s*(\d+)px\)/);
     const maxWidth = match ? parseInt(match[1], 10) : 0;
+    mockMql = createMockMql(global.window.innerWidth <= maxWidth);
+    return mockMql as any;
     // @ts-ignore
     mockMql = createMockMql(global.window.innerWidth <= maxWidth);
     return mockMql;
@@ -56,6 +61,8 @@ test('useIsMobile returns false initially on desktop', () => {
 });
 
 test('useIsMobile returns true on mobile after mount', () => {
+  global.window.innerWidth = 500;
+  const { result } = renderHook(() => useIsMobile());
   // @ts-ignore
   global.window.innerWidth = 500;
   const { result } = renderHook(() => useIsMobile());
@@ -64,12 +71,25 @@ test('useIsMobile returns true on mobile after mount', () => {
   assert.strictEqual(result.current, true, 'Should be true on mobile (500px)');
 });
 
-test('useIsMobile updates state on window resize/matchMedia change', () => {
+test('useIsMobile updates state on window resize/matchMedia change', async () => {
   // Start as desktop
   // @ts-ignore
   global.window.innerWidth = 1024;
   const { result } = renderHook(() => useIsMobile());
   assert.strictEqual(result.current, false);
+
+  // Change to mobile by manually simulating the resize event/matchMedia trigger
+  global.window.innerWidth = 500;
+
+  // Actually we need to just update the existing one and trigger the event
+  mockMql.matches = true;
+  const { act } = await import('@testing-library/react');
+  act(() => {
+    mockMql.__triggerChange();
+  });
+
+  // Wait for the next tick to allow state to update in React
+  await new Promise(resolve => setTimeout(resolve, 0));
 
   // Change to mobile
   act(() => {
