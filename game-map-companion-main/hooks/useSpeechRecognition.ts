@@ -1,3 +1,14 @@
+import { useState, useEffect, useRef } from 'react';
+
+export function useSpeechRecognition(setInput: React.Dispatch<React.SetStateAction<string>>) {
+  const [isListening, setIsListening] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export function useSpeechRecognition(onResult: (transcript: string) => void) {
@@ -20,6 +31,7 @@ export function useSpeechRecognition(onResult: (transcript: string) => void) {
 
         recognitionRef.current.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript;
+          setInput(prev => prev + (prev ? ' ' : '') + transcript);
           onResultRef.current(transcript);
           setIsListening(false);
         };
@@ -34,6 +46,9 @@ export function useSpeechRecognition(onResult: (transcript: string) => void) {
         };
       }
     }
+  }, [setInput]);
+
+  const toggleListening = () => {
   }, []);
 
   const toggleListening = useCallback(() => {
@@ -44,6 +59,22 @@ export function useSpeechRecognition(onResult: (transcript: string) => void) {
       recognitionRef.current?.start();
       setIsListening(true);
     }
+  };
+
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  return {
+    isListening,
+    autoSpeak,
+    setAutoSpeak,
+    toggleListening,
+    speakText
+  };
   }, [isListening]);
 
   return { isListening, toggleListening };

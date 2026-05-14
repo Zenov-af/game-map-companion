@@ -2,6 +2,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { useState, useRef, useEffect } from 'react';
 import { useEffect, useRef } from 'react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
@@ -38,6 +39,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useChatApi } from '@/hooks/useChatApi';
 import { v4 as uuidv4 } from 'uuid';
 import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
 import { GoogleGenAI, Part, type GenerationConfig } from '@google/genai';
@@ -150,6 +153,7 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  const { isListening, autoSpeak, setAutoSpeak, toggleListening, speakText } = useSpeechRecognition(setInput);
   const [isListening, setIsListening] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -160,6 +164,22 @@ export default function ChatComponent({ currentMapId, activeProfileId }: { curre
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const { handleSend, clearChat, handlePersonaChange } = useChatApi({
+    activeProfileId,
+    appSettings,
+    currentMap,
+    currentMarkers,
+    currentDrawings,
+    messages,
+    autoSpeak,
+    speakText,
+    setIsLoading,
+    setInput,
+    setSelectedImage,
+    input,
+    selectedImage,
+    isLoading
+  });
   const onSend = () => {
     handleSend((text) => {
       if (autoSpeak) {
