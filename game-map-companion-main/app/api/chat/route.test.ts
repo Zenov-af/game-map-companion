@@ -46,3 +46,89 @@ test('POST returns generic error message on unexpected failure', async () => {
   assert.strictEqual(data.error, 'Failed to generate response from AI.');
   assert.notStrictEqual(data.error, 'Database connection failed or some other sensitive info');
 });
+
+test('POST returns 400 on invalid context', async () => {
+  const req = {
+    json: async () => ({
+      context: '',
+      history: [],
+      userParts: [{ text: 'hello' }]
+    })
+  } as any;
+  const response = await POST(req);
+  const data = await response.json();
+  assert.strictEqual(response.status, 400);
+  assert.match(data.error, /Invalid context/);
+});
+
+test('POST returns 400 on invalid history', async () => {
+  const req = {
+    json: async () => ({
+      context: 'test context',
+      history: 'not an array',
+      userParts: [{ text: 'hello' }]
+    })
+  } as any;
+  const response = await POST(req);
+  const data = await response.json();
+  assert.strictEqual(response.status, 400);
+  assert.match(data.error, /Invalid history/);
+});
+
+test('POST returns 400 on invalid history item', async () => {
+  const req = {
+    json: async () => ({
+      context: 'test context',
+      history: [{ role: 'invalid', parts: [] }],
+      userParts: [{ text: 'hello' }]
+    })
+  } as any;
+  const response = await POST(req);
+  const data = await response.json();
+  assert.strictEqual(response.status, 400);
+  assert.match(data.error, /Invalid history item/);
+});
+
+test('POST returns 400 on invalid userParts', async () => {
+  const req = {
+    json: async () => ({
+      context: 'test context',
+      history: [],
+      userParts: []
+    })
+  } as any;
+  const response = await POST(req);
+  const data = await response.json();
+  assert.strictEqual(response.status, 400);
+  assert.match(data.error, /Invalid userParts/);
+});
+
+test('POST returns 400 on invalid temperature', async () => {
+  const req = {
+    json: async () => ({
+      context: 'test context',
+      history: [],
+      userParts: [{ text: 'hello' }],
+      temperature: 2.5
+    })
+  } as any;
+  const response = await POST(req);
+  const data = await response.json();
+  assert.strictEqual(response.status, 400);
+  assert.match(data.error, /Invalid temperature/);
+});
+
+test('POST returns 400 on invalid maxTokens', async () => {
+  const req = {
+    json: async () => ({
+      context: 'test context',
+      history: [],
+      userParts: [{ text: 'hello' }],
+      maxTokens: 5000
+    })
+  } as any;
+  const response = await POST(req);
+  const data = await response.json();
+  assert.strictEqual(response.status, 400);
+  assert.match(data.error, /Invalid maxTokens/);
+});
