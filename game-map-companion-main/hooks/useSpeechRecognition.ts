@@ -9,6 +9,22 @@ export function useSpeechRecognition(setInput: React.Dispatch<React.SetStateActi
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+export function useSpeechRecognition(onResult: (transcript: string) => void) {
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Keep the latest callback to avoid re-instantiating SpeechRecognition on every render
+  const onResultRef = useRef(onResult);
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition && !recognitionRef.current) {
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = false;
@@ -16,6 +32,7 @@ export function useSpeechRecognition(setInput: React.Dispatch<React.SetStateActi
         recognitionRef.current.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript;
           setInput(prev => prev + (prev ? ' ' : '') + transcript);
+          onResultRef.current(transcript);
           setIsListening(false);
         };
 
@@ -32,6 +49,9 @@ export function useSpeechRecognition(setInput: React.Dispatch<React.SetStateActi
   }, [setInput]);
 
   const toggleListening = () => {
+  }, []);
+
+  const toggleListening = useCallback(() => {
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -55,4 +75,7 @@ export function useSpeechRecognition(setInput: React.Dispatch<React.SetStateActi
     toggleListening,
     speakText
   };
+  }, [isListening]);
+
+  return { isListening, toggleListening };
 }
