@@ -1,5 +1,4 @@
-import { test } from 'node:test';
-import assert from 'node:assert';
+import { test, expect } from 'vitest';
 import { POST } from './route.ts';
 
 test('POST returns 500 when GEMINI_API_KEY is missing', async () => {
@@ -21,8 +20,8 @@ test('POST returns 500 when GEMINI_API_KEY is missing', async () => {
     const response = await POST(req);
     const data = await response.json();
 
-    assert.strictEqual(response.status, 500);
-    assert.strictEqual(data.error, 'Gemini API key not configured on the server.');
+    expect(response.status).toBe(500);
+    expect(data.error).toBe('Gemini API key not configured on the server.');
   } finally {
     // Restore original API key if it existed
     if (originalApiKey !== undefined) {
@@ -42,7 +41,7 @@ test('POST returns generic error message on unexpected failure', async () => {
   const response = await POST(req);
   const data = await response.json();
 
-  assert.strictEqual(response.status, 500);
-  assert.strictEqual(data.error, 'Failed to generate response from AI.');
-  assert.notStrictEqual(data.error, 'Database connection failed or some other sensitive info');
+  expect(response.status).toBe(500);
+  expect(data.error).toBe('Failed to generate response from AI.');
+  expect(data.error).not.toBe('Database connection failed or some other sensitive info');
 });

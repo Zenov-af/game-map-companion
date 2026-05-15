@@ -1,7 +1,6 @@
-import { test, beforeEach } from 'node:test';
-import assert from 'node:assert';
+import { test, beforeEach, expect, vi } from 'vitest';
 // @ts-ignore
-import { renderHook } from 'react';
+import { renderHook } from '@testing-library/react';
 import { useIsMobile } from './use-mobile.ts';
 
 // Mock window and matchMedia
@@ -44,10 +43,10 @@ test('useIsMobile returns false initially on desktop', () => {
   window.innerWidth = 1024;
   const { result, rerender } = renderHook(() => useIsMobile());
   // Initial render (before effect)
-  assert.strictEqual(result.current, false);
+  expect(result.current).toBe(false);
   // After effect
   rerender();
-  assert.strictEqual(result.current, false, 'Should be false on desktop (1024px)');
+  expect(result.current).toBe(false, 'Should be false on desktop (1024px)');
 });
 
 test('useIsMobile returns true on mobile after mount', () => {
@@ -56,7 +55,7 @@ test('useIsMobile returns true on mobile after mount', () => {
   const { result, rerender } = renderHook(() => useIsMobile());
   // After effect has run and we rerender
   rerender();
-  assert.strictEqual(result.current, true, 'Should be true on mobile (500px)');
+  expect(result.current).toBe(true, 'Should be true on mobile (500px)');
 });
 
 test('useIsMobile updates state on window resize/matchMedia change', () => {
@@ -64,7 +63,7 @@ test('useIsMobile updates state on window resize/matchMedia change', () => {
   // @ts-ignore
   window.innerWidth = 1024;
   const { result, rerender } = renderHook(() => useIsMobile());
-  assert.strictEqual(result.current, false);
+  expect(result.current).toBe(false);
 
   // Change to mobile
   // @ts-ignore
@@ -72,13 +71,13 @@ test('useIsMobile updates state on window resize/matchMedia change', () => {
   mockMql.__triggerChange();
   // We need to rerender to get the new state in our simple mock
   rerender();
-  assert.strictEqual(result.current, true);
+  expect(result.current).toBe(true);
 });
 
 test('useIsMobile cleans up event listener on unmount', () => {
   const { unmount } = renderHook(() => useIsMobile());
-  assert.strictEqual(mockMql.__listenerCount(), 1);
+  expect(mockMql.__listenerCount()).toBe(1);
 
   unmount();
-  assert.strictEqual(mockMql.__listenerCount(), 0);
+  expect(mockMql.__listenerCount()).toBe(0);
 });

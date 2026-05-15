@@ -1,10 +1,12 @@
 'use client';
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Send, Bot, User, Trash2, ImagePlus, X } from 'lucide-react';
+import { Send, Bot, User, Trash2, ImagePlus, X, Mic, MicOff } from 'lucide-react';
 import { GoogleGenAI, Part } from '@google/genai';
 
 export default function ChatComponent({ currentMapId, activeProfileId }: { currentMapId: string | null, activeProfileId: string }) {
